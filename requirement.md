@@ -301,23 +301,36 @@ Timestamp Feedbackは音声再生時間を基準として実装する。
 * スマートフォンからの利用を重視する
 * 長時間のクラシック演奏についても選択・再生しやすいUIとする
 
-## 8.6 コスト
+## 8.6 コスト・コスト急増対策
 
-個人開発であることを考慮し、ユーザー数・利用量の増加に伴う従量課金を監視し、想定外のコスト増加を抑制できる構成とする。
+### 8.6.1 基本方針
 
-特に以下を監視する。
+本サービスではCloudflare Workers、Cloudflare R2、Neon、Clerk等の従量課金または利用量に応じて料金が増加するサービスを利用する。
 
-* メディア保存容量
-* メディアRead / Write
-* API Request
-* API CPU使用量
-* DB Compute
-* DB Storage
-* 認証ユーザー数
-* ログ・監視データ量
-* 将来的な動画Transcode処理量
+そのため、通常のユーザー増加に伴うコスト増加だけでなく、以下のような事象による**想定外のコスト急増（Cost Spike）を防止できる構成**とする。
 
-ストレージ利用量について、プランごとに上限を設定する。
+```text
+ユーザー増加・大量利用・不正利用・実装不備
+                ↓
+       課金対象となる利用量増加
+                ↓
+            コスト増加
+```
+
+コスト対策は単純な監視だけに依存せず、
+
+1. 利用量そのものを制限する
+2. 不要な処理を発生させない
+3. 高コスト処理を効率化する
+4. 異常を早期検知する
+
+という多層的な対策を実施する。
+
+---
+
+### 8.6.2 ストレージ上限
+
+メディア保存量によるCloudflare R2のStorageコストを制御するため、ユーザー単位でストレージ上限を設定する。
 
 | プラン     | ストレージ上限 |
 | ------- | ------: |
@@ -326,7 +339,238 @@ Timestamp Feedbackは音声再生時間を基準として実装する。
 
 Freeプランのメディアについては原則12か月の保持期間を設定し、Premiumプランでは長期保存を可能とする。
 
-将来的に動画機能を追加する場合、ストレージ容量だけではTranscodeコストを制御できないため、動画時間・動画本数・Transcode処理量についても上限を設定する。
+アップロード時にはユーザーの現在使用量とアップロード後の想定使用量を確認し、上限を超えるアップロードを拒否する。
+
+不要となったメディアについては、DB上のデータ削除だけでなくR2上のObjectも削除する。
+
+---
+
+### 8.6.3 コストリスクと対策
+
+主要なコストリスクについて以下の対策を実施する。
+
+| 対象                    | コスト増加につながる事象                          | 課金対象への影響                    | 主な対策                                                       |
+| --------------------- | ------------------------------------- | --------------------------- | ---------------------------------------------------------- |
+| R2 Storage            | 音声・画像が大量に蓄積される                        | GB-month増加                  | Free 3GB / Premium 20GBのHard Limit、Free保持期間12か月、不要Object削除 |
+| R2 Write              | 大量アップロードや不要なPUT/LISTが発生する             | Class A Operation増加         | Upload Rate Limit、不要なWrite/List処理の削減                       |
+| R2 Read               | 同一メディアが大量再生される                        | GET等のClass B Operation増加    | Cache活用、不要な再取得防止                                           |
+| Workers Request       | Timeline・検索・Like・Comment等のAPIが大量実行される | Request数増加                  | Rate Limit、Cache、Pagination、不要なPolling禁止                   |
+| Workers CPU           | API内で重い処理を実行する                        | CPU実行時間増加                   | Workersは軽量なAPI処理を中心とし、重い処理を実行しない                           |
+| Neon Compute          | Timeline・検索等のDB Queryが増加する            | DB Compute時間・CU増加           | Index、Pagination、Cache、Query最適化                            |
+| N+1 Query             | 投稿ごとにUser・Piece等を個別取得する               | Query数・DB Compute増加         | JOIN、Batch取得、Query数監視                                      |
+| Heavy SQL             | Full Scan・大量Sort・複雑なJOINが発生する         | CPU・Memory・実行時間増加           | Index、EXPLAIN、Slow Query監視                                 |
+| Neon Storage          | 投稿・コメント・通知等が蓄積する                      | DB Storage増加                | MediaをR2へ分離、不要データのRetention検討                              |
+| Search                | 検索のたびに大量Scanが発生する                     | DB Compute増加                | Index、検索条件制限、Pagination、必要に応じて将来検索基盤を分離                    |
+| Clerk                 | Active Userが増加する                      | 認証サービス利用料増加                 | MAU/MRU監視、料金Tier到達前のコスト試算                                  |
+| Logs                  | 大量のログを保存する                            | Log ingest / Storage増加      | Log Level制御、Sampling、Retention設定、機密情報を記録しない                |
+| Notification          | 大量のメール通知等を送信する                        | 外部通知サービス利用料増加               | In-App通知優先、通知集約、送信頻度制御                                     |
+| Bot / DoS             | Bot等から大量Requestが発生する                  | Workers・R2・DB等が同時に増加        | Rate Limit、WAF/Bot対策、認証、異常アクセス遮断                           |
+| Fake Account          | 大量の無料アカウントが作成される                      | Clerk・R2等の利用量増加             | Email Verification、Signup Rate Limit、不正利用検知                |
+| Retry Storm           | 障害時に大量Retryが発生する                      | API・DB・Storageアクセス増加        | Retry回数上限、Exponential Backoff、Circuit Breaker              |
+| Polling               | Clientが短周期でAPIを呼び続ける                  | Workers Request・DB Query増加  | 不要なPolling禁止、適切な更新間隔、Cache                                 |
+| Backup                | Backupを無期限に保存する                       | Storage増加                   | Retention、保存世代数設定                                          |
+| SaaS価格変更              | 外部サービスの単価が上昇する                        | 同一利用量でも費用増加                 | 定期的な料金確認、Provider依存を抑えた設計                                  |
+| 為替変動                  | 円安になる                                 | USD建てサービスの円換算額増加            | 円安ケースを含むコスト試算                                              |
+| 実装不備                  | Infinite Loop等で大量処理が発生する              | Request・DB・Storage等が急増      | Rate Limit、処理回数上限、Budget Alert、監視                          |
+| 将来のVideo Transcode    | 動画投稿が増加する                             | CPU/GPU処理時間増加               | 動画時間・本数・Transcode処理量制限                                     |
+| 将来のVideo Upload Abuse | Upload→Transcode→削除を繰り返す              | Storageが増えなくてもTranscode費が増加 | Transcode処理量をユーザー単位で制限                                     |
+
+---
+
+### 8.6.4 APIコスト対策
+
+API Request数がユーザー数以上の速度で増加しないよう、以下を実施する。
+
+* 一覧系APIではPaginationを使用する
+* Timeline等では必要なデータをまとめて取得する
+* N+1 Queryを避ける
+* Clientからの不要なPollingを行わない
+* Cache可能なデータについてCacheを利用する
+* ユーザー・IP等を単位としたRate Limitを設定する
+* 1Request内で発行されるDB Query数が過度に増加しないよう設計する
+
+特に、
+
+```text
+API Request増加
+       ↓
+Workers Request増加
+       ↓
+DB Query増加
+       ↓
+Neon Compute増加
+```
+
+のように、1つのRequest増加が複数サービスのコスト増加につながる点を考慮する。
+
+---
+
+### 8.6.5 DBコスト対策
+
+Neon PostgreSQLについては、単純なQuery回数ではなく、QueryによるCompute使用量およびStorage使用量が主なコスト要因となる。
+
+そのため以下を実施する。
+
+* 適切なIndexを設定する
+* Full Table Scanを必要以上に発生させない
+* Timeline等の大量データ取得ではPaginationを使用する
+* N+1 Queryを避ける
+* JOINまたはBatch QueryによってQuery回数を削減する
+* Slow Queryを監視する
+* 必要に応じてEXPLAIN / EXPLAIN ANALYZEを使用してQuery Planを確認する
+* 音声・画像等の大容量データをPostgreSQLへ保存せずR2へ保存する
+
+---
+
+### 8.6.6 不正利用・異常アクセス対策
+
+通常ユーザーによる利用制限だけではなく、不正利用によるコスト急増を防止する。
+
+以下を組み合わせて実施する。
+
+```text
+Internet
+   │
+   ▼
+Rate Limit / WAF / Bot対策
+   │
+   ▼
+Authentication
+   │
+   ▼
+Application Limit
+   │
+   ├─ Storage Limit
+   ├─ Upload Limit
+   └─ API Limit
+   │
+   ▼
+Workers / R2 / Neon
+```
+
+単一の対策に依存せず、インフラ・認証・Applicationの複数レイヤーで制御する。
+
+---
+
+### 8.6.7 動画機能追加時のコスト対策
+
+動画投稿はMVP対象外とする。
+
+ユーザー需要を確認して動画機能を追加する場合、動画は配信用に圧縮・変換して保存する。
+
+Storageについては既存のプラン上限を適用する。
+
+| プラン     | Storage |
+| ------- | ------: |
+| Free    |     3GB |
+| Premium |    20GB |
+
+Freeユーザーにも動画投稿を少量提供することで機能を体験可能とする。
+
+一方、動画ではStorage容量とは別にTranscode処理自体に費用が発生するため、以下を独立して管理する。
+
+```text
+Storage Cost
+    ↓
+GBで制御
+Free 3GB / Premium 20GB
+
+Transcode Cost
+    ↓
+処理動画時間等で制御
+Free / Premiumごとに上限
+```
+
+特に以下の操作によってStorage上限を回避してTranscode費だけが発生し続けることを防止する。
+
+```text
+Upload
+ ↓
+Transcode
+ ↓
+Delete
+ ↓
+Upload
+ ↓
+Transcode
+ ↓
+Delete
+ ↓
+...
+```
+
+そのため動画機能追加時には、少なくとも以下の制御を実装する。
+
+* 1動画あたりの最大時間
+* Freeユーザーの無料動画投稿量
+* ユーザー単位のTranscode処理量
+* Upload Rate Limit
+* 同一動画の不要な再Transcode防止
+* Transcode失敗時のRetry上限
+* Original動画の不要な長期保存を行わない
+* Transcode処理量・処理単価の監視
+
+Freeでは1動画最大5分程度を初期候補とし、無料投稿可能量については動画機能追加時の実際のTranscode単価を基に決定する。
+
+PremiumについてもTranscodeを無制限とはせず、Premium料金内で最大原価を管理可能な上限を設定する。
+
+---
+
+### 8.6.8 コスト監視・Alert
+
+各サービスについて、少なくとも以下を定期的に確認可能とする。
+
+* 月間費用
+* 前月比
+* MAU
+* API Request数
+* Workers CPU使用量
+* R2 Storage使用量
+* R2 Operation数
+* Neon Compute使用量
+* Neon Storage使用量
+* ユーザーあたりStorage使用量
+* エラー率
+* Rate Limit発生数
+* 将来的なTranscode処理時間・処理量
+
+単純な総額だけではなく、
+
+```text
+Cost / MAU
+Storage / MAU
+API Request / MAU
+DB Compute / MAU
+```
+
+等の**ユーザー単位の原価指標**も確認する。
+
+ユーザー数が増加していないにもかかわらず利用量またはコストが急増した場合に検知できるようにする。
+
+---
+
+### 8.6.9 コスト上限に関する設計原則
+
+本サービスでは、可能な限り以下の状態を避ける。
+
+> **ユーザー操作によって、運営側の費用が実質無制限に増加する機能**
+
+特にStorage、Upload、API、将来的なVideo Transcode等の従量課金処理については、
+
+```text
+利用量
+↓
+上限
+↓
+最大原価
+```
+
+を把握できる設計とする。
+
+ただし、ユーザー体験を過度に損なう制限は避け、通常利用では制限を意識せず利用できる水準を設定する。
+
+料金・利用状況・ユーザー行動を継続的に計測し、必要に応じて上限値を調整する。
+
 
 ---
 
