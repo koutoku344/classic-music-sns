@@ -19,9 +19,13 @@ Composer
    └──< Piece
           ├──< Repertoire >── User
           ├──< Performance ── User
+          ├──< PracticeItem
           └──< Recruitment
 
 User
+ ├──< PracticeRecord
+ │       └──< PracticeItem
+ │
  ├──< Post
  │      ├──< Media
  │      ├──< Comment
@@ -53,6 +57,8 @@ User
 | Piece              | 楽曲Master                |
 | Repertoire         | ユーザーのレパートリー             |
 | Performance        | 演奏履歴                    |
+| PracticeRecord     | 日付単位の練習記録             |
+| PracticeItem       | 練習記録内の曲ごとの練習内容       |
 | Post               | SNS投稿                   |
 | Media              | 音声・画像Metadata           |
 | Comment            | コメント・Timestamp Feedback |
@@ -162,7 +168,37 @@ Piece DBを段階的に拡充
 
 ---
 
-## 4.6 Post
+## 4.6 PracticeRecord / PracticeItem
+
+練習記録は日付単位の`PracticeRecord`と、その日に練習した曲単位の`PracticeItem`に分離する。
+
+### PracticeRecord
+
+| 項目 | 内容 |
+| --- | --- |
+| id | Practice Record ID |
+| user_id | User |
+| practice_date | 練習日 |
+| created_at | 作成日時 |
+| updated_at | 更新日時 |
+
+### PracticeItem
+
+| 項目 | 内容 |
+| --- | --- |
+| id | Practice Item ID |
+| practice_record_id | PracticeRecord |
+| piece_id | Piece |
+| duration_minutes | 練習時間（分） |
+| comment | 曲ごとのコメント・課題等 |
+| created_at | 作成日時 |
+| updated_at | 更新日時 |
+
+1件のPracticeRecordに複数のPracticeItemを登録可能とする。同じデータを日付別・曲別の双方から参照する。
+
+---
+
+## 4.7 Post
 
 | 項目             | 内容              |
 | -------------- | --------------- |
@@ -172,12 +208,13 @@ Piece DBを段階的に拡充
 | performance_id | Performance（任意） |
 | body           | 本文              |
 | feedback_type  | 希望するFeedback    |
+| comments_enabled | Comment受付可否     |
 | created_at     | 投稿日時            |
 | updated_at     | 更新日時            |
 
 ---
 
-## 4.7 Media
+## 4.8 Media
 
 | 項目         | 内容            |
 | ---------- | ------------- |
@@ -194,7 +231,7 @@ Media本体はR2へ保存する。
 
 ---
 
-## 4.8 Comment / Like
+## 4.9 Comment / Like
 
 ### Comment
 
@@ -219,7 +256,7 @@ Media本体はR2へ保存する。
 
 ---
 
-## 4.9 Recruitment / Application
+## 4.10 Recruitment / Application
 
 ### Recruitment
 
@@ -247,7 +284,7 @@ Media本体はR2へ保存する。
 
 ---
 
-## 4.10 Conversation / Message
+## 4.11 Conversation / Message
 
 募集等でつながったUser間の簡易チャットを管理する。
 
@@ -293,7 +330,7 @@ MVPでは1対1チャットを基本とする。
 
 ---
 
-## 4.11 Subscription
+## 4.12 Subscription
 
 | 項目                     | 内容                     |
 | ---------------------- | ---------------------- |
@@ -358,6 +395,7 @@ Piece B ─┘
 | ------------ | ------------------------------------------ |
 | User         | Clerk ID Unique                            |
 | Repertoire   | User + Piece Unique                        |
+| PracticeRecord | User + Practice Dateを原則Unique |
 | Like         | User + Post Unique                         |
 | Follow       | Follower + Followee Unique / Self Follow禁止 |
 | Application  | Recruitment + User Unique                  |
@@ -388,6 +426,8 @@ Pieceについては他データから参照されるため、重複・修正時
 * Post：`user_id`, `created_at`
 * Comment：`post_id`, `created_at`
 * Performance：`user_id`, `piece_id`, `performed_at`
+* PracticeRecord：`user_id`, `practice_date`
+* PracticeItem：`practice_record_id`, `piece_id`
 * Like：`post_id`
 * Recruitment：`status`, `region`, `instrument`
 * Message：`conversation_id`, `created_at`
