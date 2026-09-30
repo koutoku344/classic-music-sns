@@ -85,7 +85,30 @@ Piece Masterの修正・統合等の管理APIは一般User向けAPIと分離す�
 
 ---
 
-# 6. Post / Timeline
+# 6. Practice
+
+| Method | Endpoint | 内容 |
+| --- | --- | --- |
+| GET | `/practices` | 練習記録一覧取得 |
+| POST | `/practices` | 日付単位の練習記録作成 |
+| GET | `/practices/{id}` | 練習記録詳細取得 |
+| PATCH | `/practices/{id}` | 練習記録更新 |
+| DELETE | `/practices/{id}` | 練習記録削除 |
+
+`GET /practices` は表示方法に応じて日付別・曲別で取得できるものとする。
+
+例：
+
+```text
+GET /api/v1/practices?view=date
+GET /api/v1/practices?view=piece&piece_id=xxx
+```
+
+作成・更新時は1件のPractice Recordに複数のPiece、練習時間、Commentを含められる。
+
+---
+
+# 7. Post / Timeline
 
 | Method | Endpoint      | 内容         |
 | ------ | ------------- | ---------- |
@@ -93,19 +116,22 @@ Piece Masterの修正・統合等の管理APIは一般User向けAPIと分離す�
 | GET    | `/posts/{id}` | Post取得     |
 | PATCH  | `/posts/{id}` | Post更新     |
 | DELETE | `/posts/{id}` | Post削除     |
-| GET    | `/timeline`   | Timeline取得 |
+| GET    | `/posts`      | Post一覧取得（ALL / Follow） |
 
-TimelineはPaginationを使用する。
+Post一覧はPaginationを使用し、`scope`でALL / Followを切り替える。
 
 例：
 
 ```text
-GET /api/v1/timeline?cursor=xxx&limit=20
+GET /api/v1/posts?scope=all&cursor=xxx&limit=20
+GET /api/v1/posts?scope=following&cursor=xxx&limit=20
 ```
+
+Post作成・更新時には`comments_enabled`を指定できる。
 
 ---
 
-# 7. Comment / Like
+# 8. Comment / Like
 
 ## Comment
 
@@ -115,7 +141,7 @@ GET /api/v1/timeline?cursor=xxx&limit=20
 | POST   | `/posts/{id}/comments` | Comment投稿   |
 | DELETE | `/comments/{id}`       | Comment削除   |
 
-音声へのFeedbackでは`media_timestamp`を指定可能とする。
+音声へのFeedbackでは`media_timestamp`を指定可能とする。Postの`comments_enabled=false`の場合はComment投稿を拒否する。
 
 ## Like
 
@@ -129,7 +155,7 @@ GET /api/v1/timeline?cursor=xxx&limit=20
 
 ---
 
-# 8. Follow
+# 9. Follow
 
 | Method | Endpoint                | 内容          |
 | ------ | ----------------------- | ----------- |
@@ -142,7 +168,7 @@ Self Followは禁止する。
 
 ---
 
-# 9. Media
+# 10. Media
 
 Media本体はFrontendとR2間で直接転送する。
 
@@ -191,7 +217,7 @@ Premium   20GB
 
 ---
 
-# 10. Recruitment / Application
+# 11. Recruitment / Application
 
 ## Recruitment
 
@@ -206,12 +232,15 @@ Premium   20GB
 主な検索条件：
 
 ```text
+scope (all / following)
 piece
 instrument
 region
 level
 status
 ```
+
+`scope=following`ではFollowしているUserが作成した募集を取得する。
 
 ## Application
 
@@ -223,7 +252,7 @@ status
 
 ---
 
-# 11. Conversation / Message
+# 12. Conversation / Message
 
 MVPでは簡易的な1対1チャットを提供する。
 
@@ -240,7 +269,7 @@ Conversation参加者以外からのアクセスは禁止する。
 
 ---
 
-# 12. Notification
+# 13. Notification
 
 | Method | Endpoint                   | 内容   |
 | ------ | -------------------------- | ---- |
@@ -258,7 +287,7 @@ Conversation参加者以外からのアクセスは禁止する。
 
 ---
 
-# 13. Subscription
+# 14. Subscription
 
 | Method | Endpoint                 | 内容               |
 | ------ | ------------------------ | ---------------- |
@@ -272,7 +301,7 @@ Card情報はBackendで保持しない。
 
 ---
 
-# 14. Authentication / Authorization
+# 15. Authentication / Authorization
 
 認証が必要なRequestはClerkの認証情報を使用する。
 
@@ -295,13 +324,14 @@ Backend API
 * Post更新・削除：投稿者のみ
 * Performance更新・削除：Ownerのみ
 * Media削除：Ownerのみ
+* Practice更新・削除：Ownerのみ
 * Recruitment更新・削除：募集者のみ
 * Application一覧：募集者のみ
 * Conversation：参加者のみ
 
 ---
 
-# 15. Response / Error
+# 16. Response / Error
 
 HTTP Status Codeを基本とする。
 
@@ -332,7 +362,7 @@ Error Responseは共通形式とする。
 
 ---
 
-# 16. 設計方針
+# 17. 設計方針
 
 * RESTを基本とする
 * API VersionをPathで管理する
