@@ -285,6 +285,10 @@ Backend API
 
 ---
 
+新規User登録時はClerkのEmail Verificationを必須とする。退会申請後はApplication上のUserを`deleting`状態としてLogin・公開情報を停止し、30日間の復旧期間後に本人固有Dataを削除する。
+
+---
+
 # 9. Payment
 
 Premium決済にはStripeを使用する。
@@ -312,6 +316,10 @@ Neon
 ```
 
 カード情報は本システムで保持しない。
+
+Premium申込にはStripe Checkoutを使用し、解約・支払方法変更・決済履歴確認等の契約管理にはStripe Customer Portalを使用する。Stripe Webhookを正としてNeonのSubscription状態を更新する。
+
+Plan別制御はBackend APIを最終判定地点とし、SubscriptionのPlanに基づいてStorage上限・Media保持期間等を判定する。FrontendはUX上の表示制御を行うが、権限制御の根拠とはしない。
 
 Premium状態はStripeの決済結果と同期して管理する。
 
