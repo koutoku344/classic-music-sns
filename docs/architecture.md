@@ -230,6 +230,12 @@ Storage上限：
 | Free    |     3GB |
 | Premium |    20GB |
 
+Storage使用量にはActive Mediaと「最近削除したMedia」を含める。
+
+Mediaの通常削除ではR2 Objectを即時に削除せず、Logical Deleteとして30日間保持する。保持期間中はUser自身で復元または完全削除でき、完全削除または30日経過後にR2 Objectを物理削除する。
+
+MVPでは別Object StorageへのMedia全量Backupは実施せず、R2が提供するData冗長化を利用する。詳細なData保護・復旧方針は `non-functional.md` に従う。
+
 ---
 
 # 8. Authentication / Authorization
@@ -455,6 +461,8 @@ User
 | Media配信        | Backend APIを経由しない           |
 | Cost           | Storage・API等の利用量に上限を設定      |
 | Portability    | 特定Platformへの依存を必要最小限とする     |
+| Availability   | Managed / Serverless Serviceの標準冗長化を利用し、MVPでは独自Multi-Region / Multi-Provider構成を持たない |
+| Scalability    | Frontend / Backend APIはCloudflare Workersの自動Scaleを利用する |
 
 ---
 
