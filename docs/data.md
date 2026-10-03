@@ -225,6 +225,8 @@ Piece DBを段階的に拡充
 | size_bytes | File容量        |
 | mime_type  | MIME Type     |
 | duration   | 音声時間          |
+| deleted_at | Logical Delete日時（Active時はNULL） |
+| purge_at   | 物理削除予定日時（削除時は原則deleted_at + 30日） |
 | created_at | Upload日時      |
 
 Media本体はR2へ保存する。
@@ -411,6 +413,10 @@ Foreign Keyを使用して参照整合性を維持する。
 # 7. 削除・保持方針
 
 Media MetadataとR2 Objectを対応させ、孤立Objectを残さない。
+
+Userによる通常のMedia削除はLogical Deleteとし、R2 Objectを即時に物理削除しない。削除済みMediaは「最近削除したMedia」として30日間保持し、User自身による復元または完全削除を可能とする。30日経過後はSystem処理でR2 Objectを物理削除する。
+
+Storage使用量はActive Mediaと「最近削除したMedia」の合計とし、削除済みMediaもFree 3GB / Premium 20GBの上限に算入する。
 
 FreeユーザーのMediaは原則12か月を保持期間とする。
 
