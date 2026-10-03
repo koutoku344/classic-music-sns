@@ -271,12 +271,15 @@ Timestamp Feedbackは音声再生時間を基準として実装する。
 * メディアアップロード等の時間を要する処理についてはユーザーに処理状態を表示する
 * 初期はMAU100人程度を想定する
 * ユーザー増加時に段階的にスケール可能な構成とする
+* Frontend / Backend APIはCloudflare Workersの自動Scaleを利用する
 
 ## 8.2 可用性
 
 個人開発・初期サービスであることを考慮し、過度な冗長化は行わない。
 
 障害発生時に復旧可能なバックアップ・監視構成を用意する。
+
+Frontend / Backend APIはCloudflare Workers、DatabaseはNeon、MediaはR2、AuthenticationはClerk、PaymentはStripeが標準提供する冗長化・障害復旧機構を利用する。MVPでは独自のMulti-Region / Multi-Provider構成は採用しない。外部Service障害時は対象機能が停止する可能性を許容し、可能な限り無関係な機能へ障害を波及させない。
 
 ## 8.3 セキュリティ
 
@@ -353,7 +356,9 @@ Freeプランのメディアについては原則12か月の保持期間を設�
 
 アップロード時にはユーザーの現在使用量とアップロード後の想定使用量を確認し、上限を超えるアップロードを拒否する。
 
-不要となったメディアについては、DB上のデータ削除だけでなくR2上のObjectも削除する。
+通常のメディア削除はLogical Deleteとし、「最近削除したMedia」として30日間保持する。保持期間中はUser自身で復元または完全削除できること。完全削除または30日経過後にR2上のObjectを物理削除する。
+
+「最近削除したMedia」もR2 Storageを使用するため、Free 3GB / Premium 20GBのユーザーStorage使用量に含める。Storage上限到達時は「最近削除したMedia」の完全削除によって容量を解放できることをUserへ案内する。
 
 ---
 
@@ -769,6 +774,8 @@ Follow / プロフィール閲覧
 * Free / PremiumによるFreemiumモデルを採用する
 * Freeストレージ上限は3GBとする
 * Premiumストレージ上限は20GBとする
+* Storage使用量にはActive Mediaと「最近削除したMedia」を含める
+* Userが削除したMediaは30日間「最近削除したMedia」として保持し、復元・完全削除を可能とする
 * Freeメディアは原則12か月保持、Premiumは長期保存を可能とする
 * Premiumは月額1,000円程度を想定する
 * 決済には外部決済サービスを利用し、クレジットカード情報を本システムでは保持しない
