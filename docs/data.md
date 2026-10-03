@@ -86,10 +86,34 @@ User
 | bio           | プロフィール一言・自己紹介 |
 | instrument    | 主な楽器          |
 | region        | 地域            |
+| status        | active / deleting |
+| deletion_requested_at | 退会申請日時（通常時NULL） |
+| scheduled_delete_at | 完全削除予定日時（通常時NULL） |
 | created_at    | 作成日時          |
 | updated_at    | 更新日時          |
 
 `clerk_user_id`はUniqueとする。
+
+退会申請時は`status=deleting`とし、30日間User Dataを保持する。退会取消時は`active`へ戻す。30日経過後は本人固有Dataを物理削除する。
+
+### UserInstrument
+
+| 項目 | 内容 |
+| --- | --- |
+| id | ID |
+| user_id | User |
+| instrument | 楽器 |
+| experience_years | 演奏歴（年） |
+| is_primary | 主な楽器か |
+
+### UserActivityPurpose
+
+| 項目 | 内容 |
+| --- | --- |
+| user_id | User |
+| purpose | 活動目的 |
+
+活動目的は複数選択可能とし、自由記述はUserの`bio`で補完する。
 
 ---
 
@@ -241,7 +265,7 @@ Media本体はR2へ保存する。
 | --------------- | --------------- |
 | id              | Comment ID      |
 | post_id         | Post            |
-| user_id         | User            |
+| user_id         | User（完全退会後はNULL可） |
 | body            | コメント            |
 | media_timestamp | 音声Timestamp（任意） |
 | created_at      | 投稿日時            |
@@ -253,6 +277,8 @@ Media本体はR2へ保存する。
 | user_id    | User  |
 | post_id    | Post  |
 | created_at | いいね日時 |
+
+退会申請中のUserが作成したCommentは表示上「退会済みユーザー」とする。30日経過後のAccount完全削除時は`Comment.user_id`をNULLにし、Comment本文を保持する。
 
 `user_id + post_id` をUniqueとする。
 
@@ -332,7 +358,24 @@ MVPでは1対1チャットを基本とする。
 
 ---
 
-## 4.12 Subscription
+## 4.12 Notification
+
+MVPではIn-App Notificationを管理する。
+
+| 項目 | 内容 |
+| --- | --- |
+| id | Notification ID |
+| user_id | 通知先User |
+| actor_user_id | 操作User（NULL可） |
+| type | comment / follow / recruitment_application / application_status / message等 |
+| target_type | 遷移先Resource種別 |
+| target_id | 遷移先Resource ID |
+| read_at | 既読日時 |
+| created_at | 作成日時 |
+
+---
+
+## 4.13 Subscription
 
 | 項目                     | 内容                     |
 | ---------------------- | ---------------------- |
@@ -342,6 +385,7 @@ MVPでは1対1チャットを基本とする。
 | stripe_subscription_id | Stripe Subscription ID |
 | status                 | 契約状態                   |
 | current_period_end     | 契約期間終了日時               |
+| cancel_at_period_end   | 期間終了時解約予定か             |
 
 Card情報は保持しない。
 
