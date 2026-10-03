@@ -751,6 +751,7 @@ Recruitment選択でRecruitment Detailへ遷移する。
 * Performance History
 * Following / Followers
 * Storage使用量
+* 最近削除したMedia
 * Subscription
 
 ---
@@ -812,7 +813,10 @@ Practiceは日々の練習記録、Performance Historyは演奏成果・履歴�
 | ------- | ---- | ------- |
 | Storage | 3GB  | 20GB    |
 | Media保持 | 12か月 | 長期保持    |
+| 最近削除したMedia | 30日保持 | 30日保持 |
 | 基本機能    | ○    | ○       |
+
+Storage使用量にはActive Mediaと「最近削除したMedia」の両方を含める。「最近削除したMedia」ではFile Size、削除日時、完全削除予定日を表示し、復元・完全削除を可能とする。Storage上限到達時は、完全削除によって容量を解放できることを案内する。
 
 ---
 
