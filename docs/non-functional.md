@@ -512,6 +512,28 @@ MVPでは復元不可とする。
 
 ---
 
+## 5.9 Account削除・復旧
+
+Account削除は即時物理削除せず、退会申請から30日間の猶予期間を設ける。
+
+退会申請時：
+
+User Delete Request
+↓
+User.status = deleting
+↓
+Login停止 / 公開Profile・Post等を非表示
+↓
+Comment等の表示名を「退会済みユーザー」へ変更
+
+30日以内は退会取消により`active`へ戻して利用再開可能とする。
+
+30日経過後は本人固有Dataを物理削除し、保持対象Comment等のUser参照を解除して匿名化したContentのみ保持する。
+
+退会猶予期間中のDataもBackup / Retentionの対象となり得るため、Privacy Policy・利用規約と実際の削除運用を整合させる。
+
+---
+
 # 6. 性能設計
 
 ## 6.1 基本方針
