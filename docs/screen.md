@@ -146,13 +146,14 @@ Login / Sign Up
 
 ## S02 Login / Sign Up
 
-Clerkを利用する。
+Clerkを利用する。新規登録時はEmail Verificationを必須とし、確認完了後に登録を完了する。
 
 主要要素：
 
 * Login
 * Sign Up
 * Password Reset等
+* Sign Up時のEmail Verification
 
 ---
 
@@ -733,6 +734,8 @@ Realtime通信はMVP必須としない。
 * Repertoire
 * Recruitment
 
+退会申請中または完全退会済みUserのComment等ではDisplay Nameを表示せず「退会済みユーザー」と表示する。
+
 Post選択でPost Detailへ遷移する。
 
 Recruitment選択でRecruitment Detailへ遷移する。
@@ -753,6 +756,9 @@ Recruitment選択でRecruitment Detailへ遷移する。
 * Storage使用量
 * 最近削除したMedia
 * Subscription
+* Account削除
+
+Account削除時は30日後に完全削除されること、退会申請後は公開情報が非表示となること、30日以内は復旧可能であることを確認画面で明示する。
 
 ---
 
@@ -808,6 +814,7 @@ Practiceは日々の練習記録、Performance Historyは演奏成果・履歴�
 * Free / Premium比較
 * Premium申込
 * 契約管理
+* 決済履歴確認
 
 | 項目      | Free | Premium |
 | ------- | ---- | ------- |
@@ -815,6 +822,8 @@ Practiceは日々の練習記録、Performance Historyは演奏成果・履歴�
 | Media保持 | 12か月 | 長期保持    |
 | 最近削除したMedia | 30日保持 | 30日保持 |
 | 基本機能    | ○    | ○       |
+
+Premium申込はStripe Checkout、契約管理・解約・支払方法変更・決済履歴確認はStripe Customer Portalへ遷移して行う。
 
 Storage使用量にはActive Mediaと「最近削除したMedia」の両方を含める。「最近削除したMedia」ではFile Size、削除日時、完全削除予定日を表示し、復元・完全削除を可能とする。Storage上限到達時は、完全削除によって容量を解放できることを案内する。
 
