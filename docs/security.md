@@ -161,7 +161,9 @@ Presigned URLはBearer Token相当として扱い、ログ等へ不用意に出�
 
 ## 7.4 削除
 
-Media削除はOwner確認後にDB MetadataとR2 Objectを削除する。孤立Object等の不整合検知は運用設計で検討する。
+Media削除はOwner確認後にLogical Deleteとし、通常の削除操作ではR2 Objectを即時に物理削除しない。削除済みMediaは30日間「最近削除したMedia」として保持し、Ownerのみ復元または完全削除できる。
+
+R2 Objectの物理削除は、Ownerによる明示的な完全削除または30日経過後のSystem処理に限定する。物理削除時もOwner / System権限を検証し、他UserのObjectを削除できないようにする。孤立Object等の不整合は監視対象とする。
 
 ---
 
@@ -256,6 +258,8 @@ API Rate Limit、Pagination、Search取得件数上限、Upload File Size上限�
 | --- | ---: |
 | Free | 3GB |
 | Premium | 20GB |
+
+Storage使用量にはActive Mediaと「最近削除したMedia」を含め、Logical Deleteを繰り返すことで実Storage使用量がPlan上限を超過し続けないようにする。
 
 User操作によって運営Costが実質無制限に増えない設計とする。
 
