@@ -263,10 +263,13 @@ Premium 5%、Storage 0.5GB/MAU。
 | API        | Rate Limit                 |
 | DB         | Index / Pagination / N+1防止 |
 | Media      | R2から直接配信                   |
+| Deleted Media | 30日保持しStorage上限に算入      |
 | Bot / DoS  | Rate Limit / WAF等          |
 | Retry      | 回数制限・Backoff               |
 | Logging    | Retention設定                |
 | Cost       | Budget Alert・利用量監視         |
+
+Storage上限にはActive Mediaと「最近削除したMedia」の両方を含める。これにより削除済みMediaを含めてもUser単位の最大Storage使用量をPlan上限内に制御する。
 
 Storageの最大R2原価は以下となる。
 
