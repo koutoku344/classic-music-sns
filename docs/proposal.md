@@ -282,7 +282,7 @@ Community Feedback
 
 動画機能を追加する場合もFreeユーザーに少量の動画投稿を提供し、利用価値を体験した上でPremiumへ移行できる構成とする。
 
-StorageについてはFree 3GB / Premium 20GBのHard Limitを設けることで、ユーザー増加時の最大保存コストを制御する。
+StorageについてはFree 3GB / Premium 20GBのHard Limitを設けることで、ユーザー増加時の最大保存コストを制御する。Userが削除したMediaは誤削除対策として30日間「最近削除したMedia」に保持し、この期間もStorage上限に算入する。
 
 動画についてはStorage上限だけではTranscode費用を制御できないため、動画時間・本数・Transcode処理量にも上限を設ける。
 
