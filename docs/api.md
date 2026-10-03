@@ -118,7 +118,7 @@ GET /api/v1/practices?view=piece&piece_id=xxx
 | DELETE | `/posts/{id}` | Post削除     |
 | GET    | `/posts`      | Post一覧取得（ALL / Follow） |
 
-Post一覧はPaginationを使用し、`scope`でALL / Followを切り替える。
+Post一覧はCursor Paginationを使用し、基本取得件数を20件程度とする。Userが続きを必要とした場合のみ次のDataを取得し、`scope`でALL / Followを切り替える。
 
 例：
 
@@ -198,7 +198,10 @@ R2
 | ------ | --------------- | ------------------- |
 | POST   | `/media/upload` | Upload許可取得          |
 | POST   | `/media`        | Upload完了・Metadata登録 |
-| DELETE | `/media/{id}`   | Media削除             |
+| GET    | `/media/deleted` | 最近削除したMedia一覧取得 |
+| DELETE | `/media/{id}` | Logical Deleteし「最近削除したMedia」へ移動 |
+| POST   | `/media/{id}/restore` | 削除済みMediaを復元 |
+| DELETE | `/media/{id}/permanent` | 削除済みMediaを完全削除 |
 
 Upload時に以下を確認する。
 
@@ -214,6 +217,10 @@ Storage上限：
 Free       3GB
 Premium   20GB
 ```
+
+Storage使用量にはActive Mediaと「最近削除したMedia」の両方を含める。
+
+通常の削除ではR2 Objectを即時に物理削除せず、30日間「最近削除したMedia」として保持する。保持期間中はUser自身で復元または完全削除できる。完全削除または30日経過後にR2 Objectを物理削除し、Storage容量を解放する。
 
 ---
 
@@ -323,7 +330,7 @@ Backend API
 
 * Post更新・削除：投稿者のみ
 * Performance更新・削除：Ownerのみ
-* Media削除：Ownerのみ
+* Media削除・復元・完全削除：Ownerのみ
 * Practice更新・削除：Ownerのみ
 * Recruitment更新・削除：募集者のみ
 * Application一覧：募集者のみ
@@ -371,5 +378,6 @@ Error Responseは共通形式とする。
 * 一覧APIはPaginationを使用する
 * Search条件・取得件数に上限を設定する
 * Rate Limitにより大量Requestを防止する
+* Mediaの通常削除はLogical Deleteとし、物理削除を分離する
 * Piece Master管理APIは一般User APIと分離する
 * API詳細なRequest / Response Schemaは詳細設計で定義する
