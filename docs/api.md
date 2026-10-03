@@ -37,8 +37,16 @@ Base Path：
 | GET    | `/users/{id}`              | Profile取得    |
 | GET    | `/users/me`                | 自分のProfile取得 |
 | PATCH  | `/users/me`                | Profile更新    |
+| DELETE | `/users/me`                | 退会申請（30日猶予開始） |
+| POST   | `/users/me/restore`        | 退会取消 |
 | GET    | `/users/{id}/performances` | 演奏履歴取得       |
 | GET    | `/users/{id}/repertoire`   | レパートリー取得     |
+
+---
+
+Account削除は即時物理削除せず`deleting`状態へ遷移する。退会申請後はLogin・公開Profile等を停止し、30日以内のみ復旧可能とする。30日経過後の物理削除はSystem処理で行う。
+
+新規登録時のEmail VerificationはClerkで必須化する。
 
 ---
 
@@ -283,6 +291,8 @@ Conversation参加者以外からのアクセスは禁止する。
 | GET    | `/notifications`           | 通知一覧 |
 | PATCH  | `/notifications/{id}/read` | 既読化  |
 
+MVPではIn-App Notificationのみを必須とする。
+
 通知対象例：
 
 * Comment
@@ -299,10 +309,13 @@ Conversation参加者以外からのアクセスは禁止する。
 | Method | Endpoint                 | 内容               |
 | ------ | ------------------------ | ---------------- |
 | GET    | `/subscription`          | 契約状態取得           |
-| POST   | `/subscription/checkout` | Premium申込開始      |
+| POST   | `/subscription/checkout` | Premium申込開始（Stripe Checkout） |
+| POST   | `/subscription/portal` | Stripe Customer Portal Session作成 |
 | POST   | `/webhooks/stripe`       | Stripe Webhook受信 |
 
-Stripe Webhookを基にSubscription状態を更新する。
+Stripe Webhookを基にSubscription状態を更新する。解約・支払方法変更・決済履歴確認等はStripe Customer Portalを利用する。
+
+Plan別制御はBackend APIで実施する。Media Upload等ではSubscriptionのPlanを確認し、Free 3GB / Premium 20GB等の制限をBackendで判定する。Frontendの表示制御のみをSecurity境界としない。
 
 Card情報はBackendで保持しない。
 
