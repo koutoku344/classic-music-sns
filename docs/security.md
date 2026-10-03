@@ -57,6 +57,8 @@ AuthenticationはClerkへ委譲する。Backend APIは認証が必要なRequest�
 
 Clerk SDKの推奨認証処理を使用し、独自認証方式を実装しない。認証失敗時はHTTP 401を返す。
 
+新規Sign Up時はEmail Verificationを必須とし、Email Addressの所有確認完了前は登録を完了させない。通常Login時に毎回Email Verificationを要求する方式とはしない。Sign UpにはRate Limitを適用し、Bot / Fake Accountが問題化した場合はCAPTCHAやDisposable Email対策等を追加検討する。
+
 ---
 
 # 5. Authorization
@@ -83,6 +85,12 @@ AuthorizationはBackend APIで実施する。Path ParameterやRequest Bodyの us
 ## 5.1 IDOR対策
 
 Resource IDを書き換えて他UserのPractice、Media、Conversation等へアクセスする攻撃を防止する。各APIでResource取得後にOwner / Memberを必ず確認し、IDだけでアクセス可否を判断しない。
+
+---
+
+Account退会申請後はUserを`deleting`状態とし、通常Login・公開Profile等へのAccessを停止する。退会申請から30日間は復旧用にDataを保持し、30日経過後に本人固有Dataを物理削除する。
+
+退会UserのComment等を保持する場合は、退会申請時点から表示名を「退会済みユーザー」に置換して公開し、完全削除時にUserとの関連を解除する。
 
 ---
 
@@ -198,6 +206,8 @@ Stripe Webhookでは以下を実施する。
 - Webhook再送を前提に冪等に処理する
 
 Subscription状態はClientから直接変更させず、Stripeの決済結果を基にBackendで更新する。
+
+Premium申込にはStripe Checkout、解約・支払方法変更・決済履歴確認にはStripe Customer Portalを利用する。Plan別機能制御はBackendでSubscription状態を確認して実施し、Frontendの表示制御のみを信頼しない。
 
 ---
 
