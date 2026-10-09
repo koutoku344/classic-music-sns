@@ -40,19 +40,8 @@ export default function Help({ navigate }: HelpProps) {
 
       <div className="bg-white rounded-2xl border border-ink-100 p-5">
         <h2 className="font-serif text-base font-semibold text-ink-900 mb-2">お問い合わせ</h2>
-        <p className="text-sm text-ink-600 mb-4">ご不明な点がございましたら、お気軽にご連絡ください。</p>
-        <a
-          href="mailto:support@crescendo.example.com"
-          className="flex items-center gap-3 p-3 bg-ink-50 rounded-xl hover:bg-ink-100 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center">
-            <Mail size={18} className="text-teal-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-ink-800">support@crescendo.example.com</p>
-            <p className="text-xs text-ink-400">通常2営業日以内にご返信いたします</p>
-          </div>
-        </a>
+        <p className="text-sm text-ink-600 mb-4">お問い合わせ窓口は現在準備中です。</p>
+        <p className="text-sm text-ink-500">お問い合わせ先は公開準備が整い次第ご案内します。</p>
       </div>
     </div>
   );
