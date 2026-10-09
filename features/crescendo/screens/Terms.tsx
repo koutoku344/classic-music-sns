@@ -17,7 +17,7 @@ export default function Terms({ navigate }: TermsProps) {
       <div className="bg-white rounded-2xl border border-ink-100 p-6 space-y-5 text-sm leading-relaxed text-ink-700">
         <section>
           <h2 className="font-serif text-base font-semibold text-ink-900 mb-2">第1条（目的）</h2>
-          <p>本利用規約（以下「本規約」）は、Crescendo（以下「本サービス」）の利用条件を定めるものです。ユーザーは、本サービスを利用することにより、本規約に同意したものとみなされます。</p>
+          <p>本利用規約（以下「本規約」）は、Sonolii（以下「本サービス」）の利用条件を定めるものです。ユーザーは、本サービスを利用することにより、本規約に同意したものとみなされます。</p>
         </section>
         <section>
           <h2 className="font-serif text-base font-semibold text-ink-900 mb-2">第2条（利用登録）</h2>
