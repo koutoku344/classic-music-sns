@@ -1,11 +1,22 @@
-# vinext app
+# Sonolii
 
-This project was created with create-vinext-app.
+クラシック演奏者向けSNS「Sonolii」の開発リポジトリです。
 
-## Scripts
+## Frontend
 
-- `pnpm run dev` starts the vinext dev server.
-- `pnpm run build` builds the Cloudflare Worker output.
-- `pnpm run start` starts the built Worker locally with Wrangler.
-- `pnpm run deploy` deploys the Cloudflare Worker.
+vinext / React / Cloudflare Workers
 
+```bash
+npm install
+npm run dev
+npm run build
+npm run deploy
+```
+
+## Backend
+
+Cloudflare Workers（`backend/`）。BackendのデプロイはFrontendとは別に行います。
+
+## Note
+
+`features/crescendo/` は既存コードの内部ディレクトリ名で、サービスの表示名とは独立しています。

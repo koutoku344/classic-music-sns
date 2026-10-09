@@ -37,7 +37,7 @@ export default function Header({ current, navigate, unreadNotifications, unreadM
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-600 to-teal-800 flex items-center justify-center shadow-sm group-hover:shadow transition-shadow">
               <Music2 size={20} className="text-white" />
             </div>
-            <span className="font-serif text-xl font-semibold text-ink-900 hidden sm:block">Crescendo</span>
+            <span className="font-serif text-xl font-semibold text-ink-900 hidden sm:block">Sonolii</span>
           </button>
 
           <nav className="hidden md:flex items-center gap-1">

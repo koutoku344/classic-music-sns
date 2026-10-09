@@ -4,7 +4,7 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/health") {
       return Response.json(
-        { status: "ok", service: "crescendo-api" },
+        { status: "ok", service: "sonolii-api" },
         { headers: { "Cache-Control": "no-store" } },
       );
     }

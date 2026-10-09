@@ -28,7 +28,7 @@ export default function Auth({ navigate }: AuthProps) {
             <div className="w-10 h-10 rounded-lg bg-teal-600 flex items-center justify-center">
               <Music2 size={22} className="text-white" />
             </div>
-            <span className="font-serif text-2xl font-semibold text-ink-900">Crescendo</span>
+            <span className="font-serif text-2xl font-semibold text-ink-900">Sonolii</span>
           </div>
 
           <div className="bg-white rounded-2xl border border-ink-100 p-8 shadow-sm">
