@@ -19,7 +19,7 @@ export default function Landing({ navigate }: LandingProps) {
             <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center">
               <Music2 size={20} className="text-white" />
             </div>
-            <span className="font-serif text-xl font-semibold">Crescendo</span>
+            <span className="font-serif text-xl font-semibold">Sonolii</span>
           </div>
           <button onClick={() => navigate('auth')} className="text-sm text-ink-200 hover:text-white transition-colors font-medium">
             ログイン
