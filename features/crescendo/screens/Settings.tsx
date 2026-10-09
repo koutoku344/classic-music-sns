@@ -75,7 +75,7 @@ export default function Settings({ navigate }: SettingsProps) {
           </div>
         </div>
 
-        <p className="text-center text-xs text-ink-300 pt-4">Crescendo v1.0.0</p>
+        <p className="text-center text-xs text-ink-300 pt-4">Sonolii v1.0.0</p>
       </div>
     </div>
   );
