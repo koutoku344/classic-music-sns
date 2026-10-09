@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "classic-music-next",
+	"name": "sonolii-web",
 	"compatibility_date": "2026-10-03",
 	"main": "vinext/server/fetch-handler",
 	"assets": {

@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Crescendo",
+  title: "Sonolii",
   description: "クラシック演奏者のためのSNS",
 };
 
