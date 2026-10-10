@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ScreenName } from '../types';
 import { Home, Music2, Calendar, Mic, Search, Bell, Mail, User, Settings, X } from 'lucide-react';
+import AuthStatus from "./AuthStatus";
 
 interface HeaderProps {
   current: ScreenName;
@@ -96,6 +97,8 @@ export default function Header({ current, navigate, unreadNotifications, unreadM
                 <span className="w-5 h-0.5 bg-ink-600" />
               </div>
             </button>
+          
+            <AuthStatus />
           </div>
         </div>
       </header>
