@@ -1,14 +1,21 @@
 import "./globals.css";
+import Providers from "./providers";
 
 export const metadata = {
   title: "Sonolii",
   description: "クラシック演奏者のためのSNS",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

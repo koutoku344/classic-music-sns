@@ -4,6 +4,8 @@
   "private": true,
   "packageManager": "npm@11.19.0",
   "dependencies": {
+    "@clerk/backend": "^3.23.2",
+    "@clerk/react": "^6.17.8",
     "@neondatabase/serverless": "^1.2.0",
     "@vinext/cloudflare": "1.1.0",
     "lucide-react": "^0.446.0",
