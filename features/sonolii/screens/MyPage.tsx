@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { me, posts, recruitments, pieces, practiceRecords } from '../data';
 import Avatar from '../components/Avatar';
@@ -24,6 +25,28 @@ const statusColors: Record<string, string> = {
 
 export default function MyPage({ navigate }: MyPageProps) {
   const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice'>('all');
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const [profile, setProfile] = useState<{
+    display_name: string; bio: string; instruments: string[]; region: string; visibility: string;
+  } | null>(null);
+  const [profileError, setProfileError] = useState('');
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let active = true;
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch('https://sonolii-api.g57cydy6ks.workers.dev/me/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`取得失敗 HTTP ${res.status}`);
+        const data = await res.json();
+        if (active) setProfile(data.profile);
+      } catch(e) { if (active) setProfileError(String(e)); }
+    })();
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, getToken]);
 
   const myPosts = posts.filter((p) => p.user.id === 'me');
   if (myPosts.length === 0) {
@@ -46,12 +69,13 @@ export default function MyPage({ navigate }: MyPageProps) {
         <div className="flex items-start gap-4 mb-4">
           <Avatar user={me} size="xl" />
           <div className="flex-1 min-w-0">
-            <h1 className="font-serif text-xl font-bold text-ink-900">{me.name}</h1>
-            <p className="text-sm text-ink-400 mt-1">{me.instrument} · {me.region}</p>
+            <h1 className="font-serif text-xl font-bold text-ink-900">{profile?.display_name || "プロフィール未設定"}</h1>
+            <p className="text-sm text-ink-400 mt-1">{[...(profile?.instruments || []), ...(profile?.region && profile.region !== '非公開' ? [profile.region] : [])].join(' · ')}</p>
           </div>
         </div>
 
-        <p className="text-sm text-ink-700 leading-relaxed mb-4">{me.bio}</p>
+        <p className="text-sm text-ink-700 leading-relaxed mb-4">{profile?.bio || ''}</p>
+        {profileError && <p role="alert" className="text-xs text-red-600">{profileError}</p>}
 
         <div className="flex items-center gap-6 mb-4 text-sm">
           <div><span className="font-bold text-ink-900">{me.following}</span> <span className="text-ink-400">フォロー中</span></div>
