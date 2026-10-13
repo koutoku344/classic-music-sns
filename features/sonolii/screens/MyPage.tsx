@@ -1,11 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
-import type { ScreenName } from '../types';
-import { me, posts, recruitments, pieces, practiceRecords } from '../data';
+import type { ScreenName, Piece } from '../types';
+import { me, posts, recruitments, practiceRecords } from '../data';
+import { API_BASE, toPiece } from '../lib/repertoireApi';
+import type { RepertoireResponse } from '../lib/repertoireApi';
 import Avatar from '../components/Avatar';
 import AudioPlayer from '../components/AudioPlayer';
 import { TrophyCard } from '../components/Trophy';
-import { Heart, MessageCircle, BookOpen, Music2, ChevronRight, Calendar, Clock, Crown, HardDrive, Shield } from 'lucide-react';
+import {
+  Heart,
+  MessageCircle,
+  BookOpen,
+  Music2,
+  ChevronRight,
+  Calendar,
+  Clock,
+  Crown,
+  HardDrive,
+  Shield,
+} from 'lucide-react';
 
 type ProfileResponse = {
   profile: {
@@ -37,38 +50,102 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice'>('all');
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profile, setProfile] = useState<{
-    display_name: string; bio: string; instruments: string[]; region: string; visibility: string;
+    display_name: string;
+    bio: string;
+    instruments: string[];
+    region: string;
+    visibility: string;
   } | null>(null);
   const [profileError, setProfileError] = useState('');
+  const [myRepertoire, setMyRepertoire] = useState<Piece[]>([]);
+  const [repertoireError, setRepertoireError] = useState('');
+  const [repertoireLoading, setRepertoireLoading] = useState(true);
+
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn) {
+      setProfile(null);
+      setProfileError('');
+      return;
+    }
+
     let active = true;
+
     (async () => {
       try {
+        setProfileError('');
         const token = await getToken();
-        if (!token) return;
-        const res = await fetch('https://sonolii-api.g57cydy6ks.workers.dev/me/profile', {
+        if (!token) throw new Error('ログインが必要です');
+
+        const res = await fetch(`${API_BASE}/me/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error(`取得失敗 HTTP ${res.status}`);
-        const data: ProfileResponse = await res.json() as ProfileResponse;
+
+        const data = (await res.json()) as ProfileResponse;
         if (active) setProfile(data.profile);
-      } catch(e) { if (active) setProfileError(String(e)); }
+      } catch (error) {
+        if (active) setProfileError(String(error));
+      }
     })();
-    return () => { active = false; };
+
+    return () => {
+      active = false;
+    };
+  }, [isLoaded, isSignedIn, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setMyRepertoire([]);
+      setRepertoireError('');
+      setRepertoireLoading(!isLoaded);
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      setRepertoireLoading(true);
+      setRepertoireError('');
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('ログインが必要です');
+
+        const res = await fetch(`${API_BASE}/me/repertoire`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`取得失敗 HTTP ${res.status}`);
+
+        const data = (await res.json()) as RepertoireResponse;
+        if (!Array.isArray(data.repertoire)) {
+          throw new Error('レパートリーの応答形式が不正です');
+        }
+        if (active) setMyRepertoire(data.repertoire.map(toPiece));
+      } catch (error) {
+        if (active) {
+          setMyRepertoire([]);
+          setRepertoireError(String(error));
+        }
+      } finally {
+        if (active) setRepertoireLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [isLoaded, isSignedIn, getToken]);
 
   const myPosts = posts.filter((p) => p.user.id === 'me');
   if (myPosts.length === 0) {
     myPosts.push(posts[0], posts[2]);
   }
+
   const myRecruitments = recruitments.filter((r) => r.user.id === 'me');
   if (myRecruitments.length === 0) {
     myRecruitments.push(recruitments[0], recruitments[2]);
   }
-  const myRepertoire = pieces;
-  const myPracticeRecords = practiceRecords;
 
+  const myPracticeRecords = practiceRecords;
   const showPosts = filter === 'all' || filter === 'posts';
   const showRecruitments = filter === 'all' || filter === 'recruitments';
   const showPractice = filter === 'all' || filter === 'practice';
@@ -79,17 +156,32 @@ export default function MyPage({ navigate }: MyPageProps) {
         <div className="flex items-start gap-4 mb-4">
           <Avatar user={me} size="xl" />
           <div className="flex-1 min-w-0">
-            <h1 className="font-serif text-xl font-bold text-ink-900">{profile?.display_name || "プロフィール未設定"}</h1>
-            <p className="text-sm text-ink-400 mt-1">{[...(profile?.instruments || []), ...(profile?.region && profile.region !== '非公開' ? [profile.region] : [])].join(' · ')}</p>
+            <h1 className="font-serif text-xl font-bold text-ink-900">
+              {profile?.display_name || 'プロフィール未設定'}
+            </h1>
+            <p className="text-sm text-ink-400 mt-1">
+              {[
+                ...(profile?.instruments || []),
+                ...(profile?.region && profile.region !== '非公開' ? [profile.region] : []),
+              ].join(' · ')}
+            </p>
           </div>
         </div>
 
         <p className="text-sm text-ink-700 leading-relaxed mb-4">{profile?.bio || ''}</p>
-        {profileError && <p role="alert" className="text-xs text-red-600">{profileError}</p>}
+        {profileError && (
+          <p role="alert" className="text-xs text-red-600">{profileError}</p>
+        )}
 
         <div className="flex items-center gap-6 mb-4 text-sm">
-          <div><span className="font-bold text-ink-900">{me.following}</span> <span className="text-ink-400">フォロー中</span></div>
-          <div><span className="font-bold text-ink-900">{me.followers}</span> <span className="text-ink-400">フォロワー</span></div>
+          <div>
+            <span className="font-bold text-ink-900">{me.following}</span>{' '}
+            <span className="text-ink-400">フォロー中</span>
+          </div>
+          <div>
+            <span className="font-bold text-ink-900">{me.followers}</span>{' '}
+            <span className="text-ink-400">フォロワー</span>
+          </div>
         </div>
       </div>
 
@@ -127,7 +219,9 @@ export default function MyPage({ navigate }: MyPageProps) {
         </div>
         <div className="flex items-center justify-between text-xs text-ink-400">
           <span>1.05 GB / 3 GB</span>
-          <span className="flex items-center gap-1"><Shield size={12} /> 音声は12か月保存</span>
+          <span className="flex items-center gap-1">
+            <Shield size={12} /> 音声は12か月保存
+          </span>
         </div>
       </div>
 
@@ -143,6 +237,15 @@ export default function MyPage({ navigate }: MyPageProps) {
             管理する <ChevronRight size={14} />
           </button>
         </div>
+        {repertoireLoading && (
+          <p role="status" className="text-sm text-ink-400 mb-2">レパートリーを読み込み中...</p>
+        )}
+        {repertoireError && (
+          <p role="alert" className="text-sm text-red-600 mb-2">{repertoireError}</p>
+        )}
+        {!repertoireLoading && !repertoireError && myRepertoire.length === 0 && (
+          <p className="text-sm text-ink-400">登録されたレパートリーはありません</p>
+        )}
         <div className="flex flex-wrap gap-2">
           {myRepertoire.map((p) => (
             <span
@@ -157,9 +260,24 @@ export default function MyPage({ navigate }: MyPageProps) {
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatBox icon={Heart} value={myPosts.reduce((s, p) => s + p.likes, 0)} label="総Likes" color="text-burgundy-500" />
-        <StatBox icon={MessageCircle} value={myPosts.reduce((s, p) => s + p.comments.length + p.timestampComments.length, 0)} label="総Comments" color="text-teal-600" />
-        <StatBox icon={Music2} value={myRepertoire.length} label="レパートリー" color="text-sage-600" />
+        <StatBox
+          icon={Heart}
+          value={myPosts.reduce((s, p) => s + p.likes, 0)}
+          label="総Likes"
+          color="text-burgundy-500"
+        />
+        <StatBox
+          icon={MessageCircle}
+          value={myPosts.reduce((s, p) => s + p.comments.length + p.timestampComments.length, 0)}
+          label="総Comments"
+          color="text-teal-600"
+        />
+        <StatBox
+          icon={Music2}
+          value={myRepertoire.length}
+          label="レパートリー"
+          color="text-sage-600"
+        />
       </div>
 
       <div className="flex gap-1 mb-5 bg-white rounded-xl border border-ink-100 p-1">
@@ -172,7 +290,9 @@ export default function MyPage({ navigate }: MyPageProps) {
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${filter === t.key ? 'bg-teal-600 text-white' : 'text-ink-600 hover:bg-ink-50'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              filter === t.key ? 'bg-teal-600 text-white' : 'text-ink-600 hover:bg-ink-50'
+            }`}
           >
             {t.label}
           </button>
@@ -199,8 +319,12 @@ export default function MyPage({ navigate }: MyPageProps) {
               </p>
               <p className="text-xs text-ink-400 truncate mt-1">{p.body}</p>
               <div className="flex items-center gap-3 mt-2 text-ink-400">
-                <span className="flex items-center gap-1 text-xs"><Heart size={12} /> {p.likes}</span>
-                <span className="flex items-center gap-1 text-xs"><MessageCircle size={12} /> {p.comments.length + p.timestampComments.length}</span>
+                <span className="flex items-center gap-1 text-xs">
+                  <Heart size={12} /> {p.likes}
+                </span>
+                <span className="flex items-center gap-1 text-xs">
+                  <MessageCircle size={12} /> {p.comments.length + p.timestampComments.length}
+                </span>
               </div>
             </div>
           </button>
@@ -213,7 +337,9 @@ export default function MyPage({ navigate }: MyPageProps) {
             className="bg-white rounded-xl border border-ink-100 p-3 hover:shadow-md transition-shadow text-left animate-slide-up"
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${r.status === 'open' ? 'bg-sage-100 text-sage-700' : 'bg-ink-100 text-ink-500'}`}>
+              <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                r.status === 'open' ? 'bg-sage-100 text-sage-700' : 'bg-ink-100 text-ink-500'
+              }`}>
                 {r.status === 'open' ? '募集中' : '終了'}
               </span>
             </div>
@@ -221,8 +347,12 @@ export default function MyPage({ navigate }: MyPageProps) {
               <span className="italic text-ink-500">{r.piece.composer}</span> / {r.piece.title}
             </p>
             <div className="flex flex-wrap gap-1 mt-2">
-              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{r.instrument}</span>
-              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">{r.region}</span>
+              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">
+                {r.instrument}
+              </span>
+              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">
+                {r.region}
+              </span>
             </div>
             <p className="text-xs text-ink-400 mt-2">応募 {r.applicants}件</p>
           </button>
@@ -234,7 +364,10 @@ export default function MyPage({ navigate }: MyPageProps) {
           {myPracticeRecords.map((record) => {
             const total = record.entries.reduce((s, e) => s + e.minutes, 0);
             return (
-              <div key={record.id} className="bg-white rounded-2xl border border-ink-100 overflow-hidden animate-slide-up">
+              <div
+                key={record.id}
+                className="bg-white rounded-2xl border border-ink-100 overflow-hidden animate-slide-up"
+              >
                 <div className="flex items-center justify-between bg-ink-50 px-4 py-2.5 border-b border-ink-100">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-ink-800">
                     <Calendar size={14} className="text-teal-600" /> {record.date}
@@ -252,15 +385,23 @@ export default function MyPage({ navigate }: MyPageProps) {
                           <p className="text-sm font-medium text-ink-800">
                             <span className="italic text-ink-500">{entry.piece.composer}</span> / {entry.piece.title}
                           </p>
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md text-xs font-medium">{entry.minutes} min</span>
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md text-xs font-medium">
+                            {entry.minutes} min
+                          </span>
                         </div>
                       </div>
                       {entry.comment && (
-                        <p className="text-xs text-ink-500 leading-relaxed pl-6 mb-2">{entry.comment}</p>
+                        <p className="text-xs text-ink-500 leading-relaxed pl-6 mb-2">
+                          {entry.comment}
+                        </p>
                       )}
                       {entry.audioTitle && entry.audioDuration && (
                         <div className="pl-6">
-                          <AudioPlayer title={entry.audioTitle} duration={entry.audioDuration} compact />
+                          <AudioPlayer
+                            title={entry.audioTitle}
+                            duration={entry.audioDuration}
+                            compact
+                          />
                         </div>
                       )}
                     </div>
@@ -275,7 +416,17 @@ export default function MyPage({ navigate }: MyPageProps) {
   );
 }
 
-function StatBox({ icon: Icon, value, label, color }: { icon: typeof Heart; value: number; label: string; color: string }) {
+function StatBox({
+  icon: Icon,
+  value,
+  label,
+  color,
+}: {
+  icon: typeof Heart;
+  value: number;
+  label: string;
+  color: string;
+}) {
   return (
     <div className="bg-white rounded-xl border border-ink-100 p-4 text-center">
       <Icon size={20} className={`mx-auto mb-1.5 ${color}`} />
