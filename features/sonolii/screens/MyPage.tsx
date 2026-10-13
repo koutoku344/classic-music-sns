@@ -7,6 +7,16 @@ import AudioPlayer from '../components/AudioPlayer';
 import { TrophyCard } from '../components/Trophy';
 import { Heart, MessageCircle, BookOpen, Music2, ChevronRight, Calendar, Clock, Crown, HardDrive, Shield } from 'lucide-react';
 
+type ProfileResponse = {
+  profile: {
+    display_name: string;
+    bio: string;
+    instruments: string[];
+    region: string;
+    visibility: string;
+  } | null;
+};
+
 interface MyPageProps {
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
 }
@@ -41,7 +51,7 @@ export default function MyPage({ navigate }: MyPageProps) {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error(`取得失敗 HTTP ${res.status}`);
-        const data = await res.json();
+        const data: ProfileResponse = await res.json() as ProfileResponse;
         if (active) setProfile(data.profile);
       } catch(e) { if (active) setProfileError(String(e)); }
     })();
