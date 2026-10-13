@@ -76,10 +76,12 @@ export default {
           instruments:row.instruments,region:row.region==="非公開"?null:row.region,
           visibility:row.visibility,restricted:false}},200,headers);
       }
-      const users=await sql`SELECT id FROM users WHERE clerk_user_id=${clerkId!} LIMIT 1`;
-      if (!users[0]) return reply({error:"user_not_synced"},409,headers);
-      const userId=users[0].id as string;
-      if (mineGet) {
+        const users=await sql`INSERT INTO users (clerk_user_id) VALUES (${clerkId!})
+         ON CONFLICT (clerk_user_id) DO UPDATE SET clerk_user_id=EXCLUDED.clerk_user_id
+         RETURNING id`;
+        const userId=users[0].id as string;
+    
+        if (mineGet) {
         const rows=await sql`SELECT user_id,display_name,bio,instruments,region,visibility,created_at,updated_at
           FROM profiles WHERE user_id=${userId}::uuid LIMIT 1`;
         return reply({profile:rows[0]||null},200,headers);

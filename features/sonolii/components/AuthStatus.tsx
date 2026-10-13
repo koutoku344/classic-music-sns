@@ -20,5 +20,5 @@ export default function AuthStatus() {
   }
 
   // ログイン済みの場合
-  return <UserButton afterSignOutUrl="/auth" />;
+  return <UserButton />;
 }
