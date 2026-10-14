@@ -7,6 +7,8 @@ import type {
   RepertoireResponse,
 } from '../lib/repertoireApi';
 import PiecePicker from '../components/PiecePicker';
+import { getOwnedPieces, resolvePiece } from '../lib/practiceApi';
+import type { SelectablePiece } from '../lib/practiceApi';
 import {
   ArrowLeft,
   BookOpen,
@@ -71,7 +73,8 @@ export default function Repertoire({ navigate }: RepertoireProps) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
 
   const [repertoire, setRepertoire] = useState<Piece[]>([]);
-  const [catalog, setCatalog] = useState<Piece[]>([]);
+  const [catalog, setCatalog] = useState<SelectablePiece[]>([]);
+  const [owned, setOwned] = useState<SelectablePiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,7 +83,7 @@ export default function Repertoire({ navigate }: RepertoireProps) {
 
   const [showAdd, setShowAdd] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
+  const [selectedPiece, setSelectedPiece] = useState<SelectablePiece | null>(null);
   const [newStatus, setNewStatus] = useState<RepertoireStatus>('practicing');
 
   // 楽曲マスタは公開APIから取得する。マスタIDは user_repertoire.id とは異なる。
@@ -105,6 +108,7 @@ export default function Repertoire({ navigate }: RepertoireProps) {
             composer: item.composer_name,
             title: item.title,
             status: 'practicing' as const,
+            source: 'master' as const,
           })),
         );
       } catch (cause) {
@@ -125,6 +129,7 @@ export default function Repertoire({ navigate }: RepertoireProps) {
     if (!isLoaded) return;
     if (!isSignedIn) {
       setRepertoire([]);
+      setOwned([]);
       setLoading(false);
       setError('');
       return;
@@ -147,8 +152,14 @@ export default function Repertoire({ navigate }: RepertoireProps) {
         if (!response.ok) throw responseError(response);
 
         const data = (await response.json()) as RepertoireResponse;
+        const personal = await getOwnedPieces(getToken);
         if (!controller.signal.aborted) {
           setRepertoire(data.repertoire.map(toPiece));
+          setOwned(personal.concat(data.repertoire.filter(r => r.piece_id).map(r => ({
+            id: r.piece_id!, source: 'master' as const,
+            composer: r.composer_name ?? '', title: r.piece_title ?? '',
+            status: 'practicing' as const,
+          }))));
         }
       } catch (cause) {
         if (!controller.signal.aborted) {
@@ -188,21 +199,18 @@ export default function Repertoire({ navigate }: RepertoireProps) {
   async function handleAdd() {
     if (!selectedPiece || saving || !isSignedIn) return;
 
-    const fromCatalog = catalog.some((piece) => piece.id === selectedPiece.id);
-    const payload = fromCatalog
-      ? { pieceId: selectedPiece.id, status: newStatus }
-      : {
-          customComposer: selectedPiece.composer,
-          customTitle: selectedPiece.title,
-          status: newStatus,
-        };
 
     setSaving(true);
     setError('');
     try {
-      const response = await authorizedRequest('/me/repertoire', 'POST', payload);
+      const selection = await resolvePiece(selectedPiece, getToken);
+      const response = await authorizedRequest('/me/repertoire', 'POST', { ...selection, status: newStatus });
       const data = (await response.json()) as RepertoireItemResponse;
       setRepertoire((previous) => [...previous, toPiece(data.repertoire)]);
+      if (selectedPiece.source === 'manual') {
+        const personal = await getOwnedPieces(getToken);
+        setOwned(previous => [...personal, ...previous.filter(p => p.source === 'master')]);
+      }
       setSelectedPiece(null);
       setNewStatus('practicing');
       setShowAdd(false);
@@ -334,7 +342,8 @@ export default function Repertoire({ navigate }: RepertoireProps) {
           <PiecePicker
             pieces={catalog}
             selectedPiece={selectedPiece}
-            onSelect={setSelectedPiece}
+            onSelect={p => setSelectedPiece(p as SelectablePiece | null)}
+            ownedPieces={owned}
             label="曲"
           />
 
