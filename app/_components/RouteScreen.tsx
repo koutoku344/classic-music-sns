@@ -66,6 +66,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     let href = routeMap[next] ?? "/posts";
     if (next === "postDetail") href = `/posts/${targetId}`;
     if (next === "practiceDetail") href = `/practice/${targetId}`;
+    if (next === "createPractice" && targetId) href = `/practice/${targetId}/edit`;
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
     if (next === "userProfile") href = `/users/${targetId}`;
@@ -86,7 +87,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     case "createPost": content = <CreatePost navigate={navigate} />; break;
     case "practice": content = <Practice navigate={navigate} />; break;
     case "practiceDetail": content = <PracticeDetail recordId={id} navigate={navigate} />; break;
-    case "createPractice": content = <CreatePractice navigate={navigate} />; break;
+    case "createPractice": content = <CreatePractice editId={id || undefined} navigate={navigate} />; break;
     case "recording": content = <Recording navigate={navigate} />; break;
     case "recruitmentDetail": content = <RecruitmentDetail recruitmentId={id} navigate={navigate} />; break;
     case "createRecruitment": content = <CreateRecruitment navigate={navigate} />; break;
