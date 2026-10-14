@@ -457,7 +457,7 @@ export default {
       const userId = users[0].id as string;
 
       if (isMediaRoute(url.pathname)) {
-        return handleMedia(request, env, sql, userId, headers);
+        return await handleMedia(request, env, sql, userId, headers);
       }
 
       // Read with the same projection for GET, POST and PATCH.
