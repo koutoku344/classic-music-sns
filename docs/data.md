@@ -512,3 +512,16 @@ Pieceについては他データから参照されるため、重複・修正時
 * 認証はClerk、決済はStripeへ委譲する
 * Foreign Key / Unique Constraintで整合性を維持する
 * 将来機能追加時も既存Entityの責務を可能な限り維持する
+
+---
+
+## STEP8確定モデル（Migration 009）
+- `performances` は実装しない。既存の概念図・古いPerformance節は旧構想であり、STEP8以降の採用モデルではない。
+- `media`: `id`, `user_id`, `object_key`（UNIQUE）, `media_type`（audio/image）, `mime_type`, `size_bytes`, `duration_seconds`, `upload_status`（pending/ready/failed）, `deleted_at`, `purge_at`, `created_at`, `updated_at`。実体はprivateなR2 Object。
+- `practice_records.audio_media_id` はnullableで、1レコード1音声をDBカラム数で表現する。複合FK `(user_id, audio_media_id) -> media(user_id,id)` によって別所有者のMedia参照を禁止する。Backendでもaudio・ready・未削除を検証する。
+- レパートリーやPracticeの曲の参照方法（`piece_id` XOR `user_piece_id`）は変更しない。
+- メディアを再利用する場合、同一Media IDを複数の練習記録で参照できる。参照中のMediaは削除前に参照解除を要求する。STEP9で投稿を参照元に追加する場合も同様に扱う。
+- `pending` はアップロード予約状態。完了通知時にR2 HEAD結果からサイズ・存在・保存情報を検証し`ready`に変更する。`failed`と未完了オブジェクトは定期回収する。
+- 使用容量は有効Mediaと論理削除Mediaの実サイズ、およびpendingの予約サイズで算出する。再利用参照によって同じMediaを重複加算しない。
+- 物理削除はR2削除の成功を確認してからメタデータを整理する。30日間の論理削除状態は`deleted_at` / `purge_at`で管理する。
+- 移行SQLは`db/migrations/009_create_media_and_practice_audio.sql`。既存Practiceデータに影響しないnullable列追加で、R2バケットやSecretsを作成しない。
