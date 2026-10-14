@@ -150,6 +150,9 @@ export async function handleMedia(
       return response({ error: "invalid_media_upload" }, 400, headers);
     }
 
+    if (!env.R2_ACCOUNT_ID || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY) {
+      return response({ error: "media_storage_unavailable" }, 503, headers);
+    }
     const key = `users/${userId}/media/${crypto.randomUUID()}`;
     let mediaId: string;
     try {
