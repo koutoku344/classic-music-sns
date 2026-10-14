@@ -69,7 +69,7 @@ export async function apiFetch(
 ): Promise<Response> {
   const token = await getToken();
   if (!token) {
-    throw new Error('ログインが必要です。')
+    throw new Error('ログインが必要です。');
   }
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -82,13 +82,13 @@ export async function apiFetch(
   });
   if (!res.ok) {
     if (res.status === 401) {
-      throw new Error('再度ログインしてください。')
+      throw new Error('再度ログインしてください。');
     }
     if (res.status === 404) {
-      throw new Error('指定したデータが見つかりません。')
+      throw new Error('指定したデータが見つかりません。');
     }
     if (res.status === 409) {
-      throw new Error('同じ曲がすでに登録されています。')
+      throw new Error('同じ曲がすでに登録されています。');
     }
     throw new Error(`APIエラー（HTTP ${res.status}）`);
   }
@@ -132,7 +132,7 @@ export async function getAllPractices(
       search.set('to', to);
     }
     if (cursor) {
-      search.set('cursor', cursor)
+      search.set('cursor', cursor);
     }
     const res = await apiFetch(`/practices?${search}`, getToken);
     const data = await res.json() as {
@@ -148,7 +148,7 @@ export async function getAllPractices(
 export async function loadCatalog(): Promise<SelectablePiece[]> {
   const res = await fetch(`${API_BASE}/catalog/pieces`, { cache: 'no-store' });
   if (!res.ok) {
-    throw new Error(`曲マスタの取得に失敗しました（HTTP ${res.status}）`)
+    throw new Error(`曲マスタの取得に失敗しました（HTTP ${res.status}）`);
   }
   const data = await res.json() as {
     pieces: { id: string; composer_name: string; title: string }[];
