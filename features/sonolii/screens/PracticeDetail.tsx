@@ -18,7 +18,9 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      return;
+    }
     if (!isSignedIn) { setRecord(null); setLoading(false); return; }
     let active = true;
     setLoading(true);
@@ -27,18 +29,26 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
       try {
         const res = await apiFetch(`/practices/${encodeURIComponent(recordId)}`, getToken);
         const data = await res.json() as { practice: PracticeRow };
-        if (active) setRecord(data.practice);
+        if (active) {
+          setRecord(data.practice)
+        }
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。');
+        if (active) {
+          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。')
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false)
+        }
       }
     })();
     return () => { active = false; };
   }, [recordId, isLoaded, isSignedIn, getToken]);
 
   async function remove() {
-    if (!record || deleting || !window.confirm('この練習記録を削除しますか？')) return;
+    if (!record || deleting || !window.confirm('この練習記録を削除しますか？')) {
+      return;
+    }
     setDeleting(true);
     setError('');
     try {
@@ -71,7 +81,8 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
           <div className="bg-ink-50 rounded-xl p-4">
             <p className="font-medium text-ink-900 flex gap-2 items-center">
               <Music2 size={18} className="text-teal-600" />
-              <span><span className="italic text-ink-500">{record.composer_name}</span> / {record.piece_title}</span>
+              <span><span
+                className="italic text-ink-500">{record.composer_name}</span> / {record.piece_title}</span>
             </p>
             {record.comment && <p className="text-sm text-ink-600 mt-3 whitespace-pre-wrap">{record.comment}</p>}
           </div>
