@@ -131,8 +131,7 @@ type RepertoireStatus = "practicing" | "repertoire";
 
 type RepertoireInput = {
   pieceId: string | null;
-  customComposer: string | null;
-  customTitle: string | null;
+  userPieceId: string | null;
   status: RepertoireStatus;
 };
 
@@ -150,51 +149,70 @@ function isUniqueViolation(error: unknown): boolean {
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function recordObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown> : null;
+}
+
 function parseRepertoire(value: unknown): RepertoireInput | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const data = value as Record<string, unknown>;
-  const keys = ["pieceId", "customComposer", "customTitle", "status"];
-  const status = parseStatus(data.status);
+  const v = recordObject(value);
+  if (!v || Object.keys(v).some(k => !["pieceId", "userPieceId", "status"].includes(k))) return null;
+  const status = parseStatus(v.status);
   if (!status) return null;
+  const pieceId = v.pieceId ?? null;
+  const userPieceId = v.userPieceId ?? null;
+  if ((pieceId === null) === (userPieceId === null)) return null;
+  if (pieceId !== null && (typeof pieceId !== "string" || !uuidPattern.test(pieceId))) return null;
+  if (userPieceId !== null && (typeof userPieceId !== "string" || !uuidPattern.test(userPieceId))) return null;
+  return { pieceId: pieceId as string | null, userPieceId: userPieceId as string | null, status };
+}
 
-  if (Object.keys(data).some((key) => !keys.includes(key))) {
-    return null;
-  }
+function parseUserPiece(value: unknown): { composer: string; title: string } | null {
+  const v = recordObject(value);
+  if (!v || Object.keys(v).some(k => !["composer", "title"].includes(k))) return null;
+  if (typeof v.composer !== "string" || typeof v.title !== "string") return null;
+  const composer = v.composer.trim();
+  const title = v.title.trim();
+  return composer && title && composer.length <= 120 && title.length <= 240
+    ? { composer, title } : null;
+}
 
-  const pieceId = data.pieceId ?? null;
-  const composer = data.customComposer ?? null;
-  const title = data.customTitle ?? null;
+function validDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() + 1 === m && date.getUTCDate() === d;
+}
 
-  if (pieceId !== null) {
-    if (typeof pieceId !== "string" || !uuidPattern.test(pieceId)) {
-      return null;
-    }
-    if (composer !== null || title !== null) {
-      return null;
-    }
-    return { pieceId, customComposer: null, customTitle: null, status };
-  }
+type PracticeInput = {
+  practiceDate: string;
+  pieceId: string | null;
+  userPieceId: string | null;
+  durationMinutes: number;
+  comment: string;
+};
 
-  if (typeof composer !== "string" || typeof title !== "string") {
-    return null;
-  }
-
-  const customComposer = composer.trim();
-  const customTitle = title.trim();
-
-  if (
-    !customComposer ||
-    !customTitle ||
-    customComposer.length > 120 ||
-    customTitle.length > 240
-  ) {
-    return null;
-  }
-
-  return { pieceId: null, customComposer, customTitle, status };
+function parsePractice(value: unknown): PracticeInput | null {
+  const v = recordObject(value);
+  if (!v || Object.keys(v).some(k => ![
+    "practiceDate", "pieceId", "userPieceId", "durationMinutes", "comment"
+  ].includes(k))) return null;
+  const pieceId = v.pieceId ?? null;
+  const userPieceId = v.userPieceId ?? null;
+  if (!validDate(v.practiceDate) || ((pieceId === null) === (userPieceId === null))) return null;
+  if (pieceId !== null && (typeof pieceId !== "string" || !uuidPattern.test(pieceId))) return null;
+  if (userPieceId !== null && (typeof userPieceId !== "string" || !uuidPattern.test(userPieceId))) return null;
+  if (typeof v.durationMinutes !== "number" ||
+    !Number.isInteger(v.durationMinutes) || v.durationMinutes < 1 || v.durationMinutes > 1440) return null;
+  const comment = v.comment ?? "";
+  if (typeof comment !== "string" || comment.length > 2000) return null;
+  return {
+    practiceDate: v.practiceDate as string,
+    pieceId: pieceId as string | null,
+    userPieceId: userPieceId as string | null,
+    durationMinutes: v.durationMinutes,
+    comment
+  };
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -256,9 +274,21 @@ export default {
     const repMatch = url.pathname.match(/^\/me\/repertoire\/([^/]+)$/);
     const repUpdate = request.method === "PATCH" && !!repMatch;
     const repDelete = request.method === "DELETE" && !!repMatch;
+    const userPiecesList = request.method === "GET" && url.pathname === "/me/pieces";
+    const userPiecesCreate = request.method === "POST" && url.pathname === "/me/pieces";
+    const userPieceMatch = url.pathname.match(/^\\/me\\/pieces\\/([^/]+)$/);
+    const userPiecesPatch = request.method === "PATCH" && !!userPieceMatch;
+    const practicesList = request.method === "GET" && url.pathname === "/practices";
+    const practicesCreate = request.method === "POST" && url.pathname === "/practices";
+    const practiceMatch = url.pathname.match(/^\\/practices\\/([^/]+)$/);
+    const practiceGet = request.method === "GET" && !!practiceMatch;
+    const practicePatch = request.method === "PATCH" && !!practiceMatch;
+    const practiceDelete = request.method === "DELETE" && !!practiceMatch;
 
     if (!(mineGet || minePatch || sync || check || publicGet ||
-      catalogGet || repList || repCreate || repUpdate || repDelete)) {
+      catalogGet || repList || repCreate || repUpdate || repDelete ||
+      userPiecesList || userPiecesCreate || userPiecesPatch ||
+      practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete)) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -396,13 +426,14 @@ export default {
       const getRepertoire = async (id: string) => {
         const rows = await sql`
           SELECT
-            r.id, r.piece_id, r.custom_composer, r.custom_title,
-            COALESCE(c.name, r.custom_composer) AS composer_name,
-            COALESCE(p.title, r.custom_title) AS piece_title,
+            r.id, r.piece_id, r.user_piece_id,
+            COALESCE(c.name, up.composer) AS composer_name,
+            COALESCE(p.title, up.title) AS piece_title,
             r.status, r.created_at
           FROM public.user_repertoire r
           LEFT JOIN public.pieces p ON p.id = r.piece_id
           LEFT JOIN public.composers c ON c.id = p.composer_id
+          LEFT JOIN public.user_pieces up ON up.id = r.user_piece_id AND up.user_id = r.user_id
           WHERE r.id = ${id}::uuid AND r.user_id = ${userId}::uuid
           LIMIT 1
         `;
@@ -412,13 +443,14 @@ export default {
       if (repList) {
         const rows = await sql`
           SELECT
-            r.id, r.piece_id, r.custom_composer, r.custom_title,
-            COALESCE(c.name, r.custom_composer) AS composer_name,
-            COALESCE(p.title, r.custom_title) AS piece_title,
+            r.id, r.piece_id, r.user_piece_id,
+            COALESCE(c.name, up.composer) AS composer_name,
+            COALESCE(p.title, up.title) AS piece_title,
             r.status, r.created_at
           FROM public.user_repertoire r
           LEFT JOIN public.pieces p ON p.id = r.piece_id
           LEFT JOIN public.composers c ON c.id = p.composer_id
+          LEFT JOIN public.user_pieces up ON up.id = r.user_piece_id AND up.user_id = r.user_id
           WHERE r.user_id = ${userId}::uuid
           ORDER BY r.created_at DESC
         `;
@@ -442,7 +474,7 @@ export default {
           const input = parseRepertoire(parsed);
           if (!input) return reply({ error: "invalid_repertoire" }, 400, headers);
 
-          const { pieceId, customComposer, customTitle, status } = input;
+          const { pieceId, userPieceId, status } = input;
           if (pieceId) {
             const found = await sql`
               SELECT id FROM public.pieces WHERE id = ${pieceId}::uuid LIMIT 1
@@ -452,11 +484,17 @@ export default {
             }
           }
 
+          if (userPieceId) {
+            const owned = await sql`
+              SELECT id FROM public.user_pieces
+              WHERE id = ${userPieceId}::uuid AND user_id = ${userId}::uuid
+              LIMIT 1
+            `;
+            if (!owned.length) return reply({ error: "not_found" }, 404, headers);
+          }
           const inserted = await sql`
-            INSERT INTO public.user_repertoire
-              (user_id, piece_id, custom_composer, custom_title, status)
-            VALUES
-              (${userId}::uuid, ${pieceId}::uuid, ${customComposer}, ${customTitle}, ${status})
+            INSERT INTO public.user_repertoire (user_id, piece_id, user_piece_id, status)
+            VALUES (${userId}::uuid, ${pieceId}::uuid, ${userPieceId}::uuid, ${status})
             RETURNING id
           `;
           const row = await getRepertoire(inserted[0].id as string);
@@ -502,6 +540,186 @@ export default {
         `;
         return rows.length
           ? new Response(null, { status: 204, headers: { "Cache-Control": "no-store", ...headers } })
+          : reply({ error: "not_found" }, 404, headers);
+      }
+
+      // User-created pieces belong to the authenticated user alone.
+      if (userPiecesList) {
+        const rows = await sql`
+          SELECT id, composer, title, created_at, updated_at
+          FROM public.user_pieces WHERE user_id = ${userId}::uuid
+          ORDER BY created_at DESC, id DESC LIMIT 500
+        `;
+        return reply({ pieces: rows }, 200, headers);
+      }
+
+      if (userPiecesCreate || userPiecesPatch) {
+        let input: ReturnType<typeof parseUserPiece>;
+        try { input = parseUserPiece(await readJson(request)); }
+        catch (e) {
+          return reply({ error: e instanceof Error ? e.message : "invalid_json" },
+            e instanceof Error && e.message === "payload_too_large" ? 413 : 400, headers);
+        }
+        if (!input) return reply({ error: "invalid_user_piece" }, 400, headers);
+        if (userPiecesCreate) {
+          // ON CONFLICT protects against concurrent identical submissions.
+          const rows = await sql`
+            INSERT INTO public.user_pieces(user_id, composer, title)
+            VALUES (${userId}::uuid, ${input.composer}, ${input.title})
+            ON CONFLICT (user_id, lower(btrim(composer)), lower(btrim(title)))
+            DO NOTHING
+            RETURNING id, composer, title, created_at, updated_at
+          `;
+          if (rows.length) return reply({ piece: rows[0] }, 201, headers);
+          const existing = await sql`
+            SELECT id, composer, title, created_at, updated_at
+            FROM public.user_pieces
+            WHERE user_id = ${userId}::uuid
+              AND lower(btrim(composer)) = lower(btrim(${input.composer}))
+              AND lower(btrim(title)) = lower(btrim(${input.title}))
+            LIMIT 1
+          `;
+          return reply({ piece: existing[0] }, 200, headers);
+        }
+
+        const id = userPieceMatch![1];
+        if (!uuidPattern.test(id)) return reply({ error: "invalid_user_piece_id" }, 400, headers);
+        const rows = await sql`
+          UPDATE public.user_pieces
+          SET composer = ${input.composer}, title = ${input.title}, updated_at = now()
+          WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+          RETURNING id, composer, title, created_at, updated_at
+        `;
+        return rows.length ? reply({ piece: rows[0] }, 200, headers)
+          : reply({ error: "not_found" }, 404, headers);
+      }
+
+      const getPractice = async (id: string) => {
+        const rows = await sql`
+          SELECT r.id, r.piece_id, r.user_piece_id,
+            to_char(r.practice_date, 'YYYY-MM-DD') AS practice_date,
+            r.duration_minutes, r.comment, r.created_at, r.updated_at,
+            COALESCE(c.name, up.composer) AS composer_name,
+            COALESCE(p.title, up.title) AS piece_title
+          FROM public.practice_records r
+          LEFT JOIN public.pieces p ON p.id = r.piece_id
+          LEFT JOIN public.composers c ON c.id = p.composer_id
+          LEFT JOIN public.user_pieces up ON up.id = r.user_piece_id AND up.user_id = r.user_id
+          WHERE r.id = ${id}::uuid AND r.user_id = ${userId}::uuid
+          LIMIT 1
+        `;
+        return rows[0] ?? null;
+      };
+
+      if (practicesList) {
+        const from = url.searchParams.get("from");
+        const to = url.searchParams.get("to");
+        const limitValue = url.searchParams.get("limit") ?? "50";
+        const cursor = url.searchParams.get("cursor");
+        if ((from !== null && !validDate(from)) || (to !== null && !validDate(to)) ||
+          ((from === null) !== (to === null)) || (from !== null && to !== null && from > to) ||
+          !/^\\d+$/.test(limitValue) || Number(limitValue) < 1 || Number(limitValue) > 100) {
+          return reply({ error: "invalid_query" }, 400, headers);
+        }
+        let offset = 0;
+        if (cursor) {
+          try {
+            const decoded = atob(cursor);
+            if (!/^\\d+$/.test(decoded)) throw new Error("invalid_cursor");
+            offset = Number(decoded);
+            if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw new Error("invalid_cursor");
+          } catch {
+            return reply({ error: "invalid_cursor" }, 400, headers);
+          }
+        }
+        const limit = Number(limitValue);
+        const rows = await sql`
+          SELECT r.id, r.piece_id, r.user_piece_id,
+            to_char(r.practice_date, 'YYYY-MM-DD') AS practice_date,
+            r.duration_minutes, r.comment, r.created_at, r.updated_at,
+            COALESCE(c.name, up.composer) AS composer_name,
+            COALESCE(p.title, up.title) AS piece_title
+          FROM public.practice_records r
+          LEFT JOIN public.pieces p ON p.id = r.piece_id
+          LEFT JOIN public.composers c ON c.id = p.composer_id
+          LEFT JOIN public.user_pieces up ON up.id = r.user_piece_id AND up.user_id = r.user_id
+          WHERE r.user_id = ${userId}::uuid
+            AND (${from}::date IS NULL OR r.practice_date >= ${from}::date)
+            AND (${to}::date IS NULL OR r.practice_date <= ${to}::date)
+          ORDER BY r.practice_date DESC, r.created_at DESC, r.id DESC
+          LIMIT ${limit + 1} OFFSET ${offset}
+        `;
+        const more = rows.length > limit;
+        return reply({
+          practices: rows.slice(0, limit),
+          nextCursor: more ? btoa(String(offset + limit)) : null
+        }, 200, headers);
+      }
+
+      if (practiceGet || practicePatch || practiceDelete) {
+        const id = practiceMatch![1];
+        if (!uuidPattern.test(id)) return reply({ error: "invalid_practice_id" }, 400, headers);
+        if (practiceGet) {
+          const row = await getPractice(id);
+          return row ? reply({ practice: row }, 200, headers)
+            : reply({ error: "not_found" }, 404, headers);
+        }
+        if (practiceDelete) {
+          const rows = await sql`
+            DELETE FROM public.practice_records
+            WHERE id = ${id}::uuid AND user_id = ${userId}::uuid RETURNING id
+          `;
+          return rows.length ? new Response(null, {
+            status: 204, headers: { "Cache-Control": "no-store", ...headers }
+          }) : reply({ error: "not_found" }, 404, headers);
+        }
+      }
+
+      if (practicesCreate || practicePatch) {
+        let input: ReturnType<typeof parsePractice>;
+        try { input = parsePractice(await readJson(request)); }
+        catch (e) {
+          return reply({ error: e instanceof Error ? e.message : "invalid_json" },
+            e instanceof Error && e.message === "payload_too_large" ? 413 : 400, headers);
+        }
+        if (!input) return reply({ error: "invalid_practice" }, 400, headers);
+        if (input.userPieceId) {
+          const owned = await sql`
+            SELECT id FROM public.user_pieces
+            WHERE id = ${input.userPieceId}::uuid AND user_id = ${userId}::uuid
+            LIMIT 1
+          `;
+          if (!owned.length) return reply({ error: "not_found" }, 404, headers);
+        } else {
+          const found = await sql`
+            SELECT id FROM public.pieces WHERE id = ${input.pieceId}::uuid LIMIT 1
+          `;
+          if (!found.length) return reply({ error: "not_found" }, 404, headers);
+        }
+        if (practicesCreate) {
+          const rows = await sql`
+            INSERT INTO public.practice_records
+              (user_id, piece_id, user_piece_id, practice_date, duration_minutes, comment)
+            VALUES
+              (${userId}::uuid, ${input.pieceId}::uuid, ${input.userPieceId}::uuid,
+               ${input.practiceDate}::date, ${input.durationMinutes}, ${input.comment})
+            RETURNING id
+          `;
+          return reply({ practice: await getPractice(rows[0].id as string) }, 201, headers);
+        }
+        const id = practiceMatch![1];
+        const rows = await sql`
+          UPDATE public.practice_records
+          SET piece_id = ${input.pieceId}::uuid,
+              user_piece_id = ${input.userPieceId}::uuid,
+              practice_date = ${input.practiceDate}::date,
+              duration_minutes = ${input.durationMinutes},
+              comment = ${input.comment},
+              updated_at = now()
+          WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+          RETURNING id
+        `;
+        return rows.length ? reply({ practice: await getPractice(id) }, 200, headers)
           : reply({ error: "not_found" }, 404, headers);
       }
 
@@ -586,7 +804,8 @@ export default {
         return reply({ profile: rows[0] }, 200, headers);
       }
     } catch (error) {
-      if (isUniqueViolation(error) && repCreate) {
+      if (isUniqueViolation(error) &&
+        (repCreate || userPiecesCreate || userPiecesPatch)) {
         return reply({ error: "already_exists" }, 409, headers);
       }
       console.error("API failed", error);
