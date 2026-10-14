@@ -28,7 +28,9 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      return;
+    }
     if (!isSignedIn) { setLoading(false); return; }
     let active = true;
     setLoading(true);
@@ -45,33 +47,59 @@ export default function CreatePractice({ navigate, editId }: Props) {
           const key = `${r.user_piece_id ? 'user' : 'master'}:${r.user_piece_id ?? r.piece_id}`;
           if (!recent.has(key)) recent.set(key, toSelectablePiece(r));
         });
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setCatalog(catalogRows);
         setPast([...recent.values()]);
-        const masterOwned = practiceRows.filter(r => r.piece_id).map(r => masterById.get(r.piece_id!) ?? toSelectablePiece(r));
-        const ownedMap = new Map([...ownedRows, ...masterOwned].map(p => [`${p.source}:${p.id}`, p]));
+        const masterOwned = practiceRows
+          .filter((record) => record.piece_id)
+          .map(
+            (record) =>
+              masterById.get(record.piece_id!) ?? toSelectablePiece(record),
+          );
+        const ownedMap = new Map(
+          [...ownedRows, ...masterOwned].map((item) => [
+            `${item.source}:${item.id}`,
+            item,
+          ]),
+        );
         setOwned([...ownedMap.values()]);
         if (editId) {
           const res = await apiFetch(`/practices/${encodeURIComponent(editId)}`, getToken);
           const data = await res.json() as { practice: PracticeRow };
-          if (!active) return;
+          if (!active) {
+            return;
+          }
           setDate(data.practice.practice_date);
           setMinutes(data.practice.duration_minutes);
           setComment(data.practice.comment);
           setPiece(toSelectablePiece(data.practice));
         }
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : 'データの取得に失敗しました。');
+        if (active) {
+          setError(e instanceof Error ? e.message : 'データの取得に失敗しました。')
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false)
+        }
       }
     })();
     return () => { active = false; };
   }, [isLoaded, isSignedIn, getToken, editId]);
 
   async function save() {
-    if (!piece || !isSignedIn || saving || loading) return;
-    if (!date || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440 || comment.length > 2000) {
+    if (!piece || !isSignedIn || saving || loading) {
+      return;
+    }
+    if (
+      !date ||
+      !Number.isInteger(minutes) ||
+      minutes < 1 ||
+      minutes > 1440 ||
+      comment.length > 2000
+    ) {
       setError('日付、練習時間（1〜1440分）、メモ（2000文字以内）を確認してください。');
       return;
     }
@@ -110,7 +138,8 @@ export default function CreatePractice({ navigate, editId }: Props) {
         {loading && <p className="text-ink-500 text-sm">読み込み中...</p>}
         {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
         <div>
-          <label htmlFor="practice-date" className="block text-sm font-medium text-ink-700 mb-2">練習日</label>
+          <label htmlFor="practice-date"
+            className="block text-sm font-medium text-ink-700 mb-2">練習日</label>
           <input id="practice-date" type="date" value={date} onChange={e => setDate(e.target.value)}
             className="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-xl text-sm" />
         </div>
@@ -123,7 +152,8 @@ export default function CreatePractice({ navigate, editId }: Props) {
           label="練習した曲"
         />
         <div>
-          <label htmlFor="practice-minutes" className="block text-sm font-medium text-ink-700 mb-2">練習時間（分）</label>
+          <label htmlFor="practice-minutes"
+            className="block text-sm font-medium text-ink-700 mb-2">練習時間（分）</label>
           <div className="flex items-center gap-2">
             <Clock size={18} className="text-ink-400" />
             <input id="practice-minutes" type="number" min={1} max={1440} step={1}
@@ -132,7 +162,8 @@ export default function CreatePractice({ navigate, editId }: Props) {
           </div>
         </div>
         <div>
-          <label htmlFor="practice-comment" className="block text-sm font-medium text-ink-700 mb-2">メモ</label>
+          <label htmlFor="practice-comment"
+            className="block text-sm font-medium text-ink-700 mb-2">メモ</label>
           <textarea id="practice-comment" maxLength={2000} rows={4} value={comment}
             onChange={e => setComment(e.target.value)} placeholder="練習内容や気づきを記録"
             className="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-xl text-sm" />
