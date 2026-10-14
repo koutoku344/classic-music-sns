@@ -9,6 +9,9 @@
       "bucket_name": "sonolii-media"
     }
   ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "observability": {
     "enabled": true
   }
