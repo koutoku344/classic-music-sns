@@ -502,3 +502,14 @@ R2 Compressed Video
 ```
 
 将来機能を追加しても、Frontend / Backend API / Database / Object Storageの責務を可能な限り維持できる構成とする。
+
+---
+
+## STEP8: Media実装アーキテクチャ
+- MediaはCloudflare R2のPrivate Bucketに保存し、Neonの`media`でOwner/Key/Status/容量を管理する。`performances`は作成しない。
+- FrontendはClerk認証付きでBackendにPUT用Presigned URLを要求し、FileをR2へ直接単一PUT送信する。Backendは予約容量・許可MIME・Sizeを検証する。200MB音声、10MB画像、元ファイルのまま保存し、初期はmultipart/自動変換なし。
+- Upload完了後にFrontendがBackendへ通知する。BackendはR2のHEADでObjectを照合した上でready化する。異常なpendingや孤立Objectは後続の定期ジョブで掃除する。
+- Practiceの音声関連は`practice_records.audio_media_id`（最大1件、null可）からMediaを参照する。投稿への関連付けと公開認可はSTEP9。
+- Browser録音はMediaRecorder（最大30分・利用可能形式判定）を利用。保存済みの音声はMedia IDを再利用する。音声ダウンロードUIは実装しない。
+- `profiles.visibility`はUser単位の閲覧制御。R2へのアクセス権限はJWT Owner判定または将来の投稿閲覧権限に基づいてBackendから短時間URLを発行する。STEP8は本人向けURLのみ。
+- 限度額対策として、R2バケットの容量上限だけに頼らず、User別Quota（Free 3GB／Premium 20GB）とpending予約をDBで管理し、アップロード許可時の同時実行競合を防止する。
