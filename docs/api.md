@@ -72,47 +72,101 @@ Piece Masterの修正・統合等の管理APIは一般User向けAPIと分離す�
 
 ---
 
-# 5. Repertoire / Performance
+# 5. User Pieces / Repertoire / Performance
+
+## User Pieces（手動登録のユーザー固有曲）
+
+すべてClerk認証必須。ユーザーIDはJWTから解決し、Clientのuser_id指定を信用しない。
+
+| Method | Endpoint | 内容 | 成功 |
+| --- | --- | --- | --- |
+| GET | `/me/pieces` | 本人の手動登録曲一覧 | 200 |
+| POST | `/me/pieces` | 手動曲の新規作成・正規化一致時の既存ID再利用 | 201（新規）/200（再利用） |
+| PATCH | `/me/pieces/{id}` | 本人の手動登録曲の名称編集（STEP7ではUIなし） | 200 |
+
+POST body: `{"composer":"J.S. Bach","title":"Partita No.2"}`。前後空白除去・大小文字無視した作曲者名+曲名で本人の既存曲が一致する場合は既存IDを再利用する。同時登録の競合もDBのUnique制約で処理する。
+
+PATCH body: `{"composer":"J.S. Bach","title":"Partita No.2 Allemande"}`。IDは変更しない。既存曲との正規化名称衝突は409、本人以外・存在しないIDは404。STEP7では削除APIなし。
 
 ## Repertoire
 
-| Method | Endpoint           | 内容      |
-| ------ | ------------------ | ------- |
-| POST   | `/repertoire`      | Piece登録 |
-| PATCH  | `/repertoire/{id}` | 状態更新    |
-| DELETE | `/repertoire/{id}` | 削除      |
+| Method | Endpoint | 内容 |
+| --- | --- | --- |
+| GET | `/me/repertoire` | 本人のレパートリー取得 |
+| POST | `/me/repertoire` | 共通マスタまたは本人の手動曲を登録 |
+| PATCH | `/me/repertoire/{id}` | 状態更新 |
+| DELETE | `/me/repertoire/{id}` | レパートリーから削除（user_piecesは保持） |
+
+POSTは `{"pieceId":"UUID","status":"practicing"}` または `{"userPieceId":"UUID","status":"practicing"}`。どちらか一方だけ指定する。既存の `customComposer/customTitle` リクエストはSTEP7のFrontend更新後に廃止する。レスポンスは `piece_id` / `user_piece_id` と作曲者・曲名を返す。ほかのユーザーの `userPieceId` は404。
 
 ## Performance
 
-| Method | Endpoint             | 内容     |
-| ------ | -------------------- | ------ |
-| POST   | `/performances`      | 演奏履歴登録 |
-| GET    | `/performances/{id}` | 演奏履歴取得 |
-| PATCH  | `/performances/{id}` | 演奏履歴更新 |
+| Method | Endpoint | 内容 |
+| --- | --- | --- |
+| POST | `/performances` | 演奏履歴登録 |
+| GET | `/performances/{id}` | 演奏履歴取得 |
+| PATCH | `/performances/{id}` | 演奏履歴更新 |
 | DELETE | `/performances/{id}` | 演奏履歴削除 |
 
 ---
 
 # 6. Practice
 
-| Method | Endpoint | 内容 |
-| --- | --- | --- |
-| GET | `/practices` | 練習記録一覧取得 |
-| POST | `/practices` | 日付単位の練習記録作成 |
-| GET | `/practices/{id}` | 練習記録詳細取得 |
-| PATCH | `/practices/{id}` | 練習記録更新 |
-| DELETE | `/practices/{id}` | 練習記録削除 |
+**1記録 = 1曲**。同一日・同一曲に複数記録を許可する。すべて本人の認証必須。
 
-`GET /practices` は表示方法に応じて日付別・曲別で取得できるものとする。
+| Method | Endpoint | 内容 | 成功 |
+| --- | --- | --- | --- |
+| GET | `/practices` | 練習記録一覧・集計に必要なデータ | 200 |
+| POST | `/practices` | 1曲の練習記録作成 | 201 |
+| GET | `/practices/{id}` | 本人の練習記録詳細 | 200 |
+| PATCH | `/practices/{id}` | 記録の編集 | 200 |
+| DELETE | `/practices/{id}` | 記録の削除 | 204 |
 
-例：
+### Request
 
-```text
-GET /api/v1/practices?view=date
-GET /api/v1/practices?view=piece&piece_id=xxx
+POST body例：
+
+```json
+{
+  "practiceDate": "2026-10-14",
+  "userPieceId": "550e8400-e29b-41d4-a716-446655440000",
+  "durationMinutes": 45,
+  "comment": "中間部を練習"
+}
 ```
 
-作成・更新時は1件のPractice Recordに複数のPiece、練習時間、Commentを含められる。
+`pieceId`（共通マスタ）または `userPieceId`（本人の手動登録曲）を必ずどちらか一方指定する。日付はYYYY-MM-DD、durationMinutesは整数1〜1440、commentは最大2000文字。PATCHは変更後の全フィールドを指定する（全量置換の更新契約）。Bodyに `user_id` は受け付けない。
+
+### Response
+
+GET一覧の例：
+
+```json
+{
+  "practices": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "practice_date": "2026-10-14",
+      "piece_id": null,
+      "user_piece_id": "550e8400-e29b-41d4-a716-446655440000",
+      "composer_name": "J.S. Bach",
+      "piece_title": "Partita No.2",
+      "duration_minutes": 45,
+      "comment": "中間部を練習",
+      "created_at": "2026-10-14T01:00:00Z",
+      "updated_at": "2026-10-14T01:00:00Z"
+    }
+  ]
+}
+```
+
+GET / PATCH 詳細のレスポンスは `{"practice":{...}}`、POSTも同形式とする。DELETEはbodyなしの204。
+
+一覧Queryは `from` / `to` （YYYY-MM-DD、双方指定）、`limit`（1〜100、デフォルト50）、`cursor`（次ページ取得用、不透明文字列）を採用する。新しい練習日→作成日時→ID順で並べ、`nextCursor` がNULLになるまでページング可能とする。日付別・曲別集計は、取得期間内の**全件**から集計し、1ページ分だけを合計しない。STEP7の実装では必要に応じ集計クエリを別途発行する。
+
+### Error / Authorization
+
+未認証401、形式不正400、本人以外または存在しない記録/手動曲ID404、名称重複409、Body超過413、内部障害500。本人の練習記録のみをSQLの `user_id` 条件で取得・更新・削除する。FrontendはAPIの成功後に一覧へ反映し、失敗時は保持する。音声の送受信・メタデータ参照はSTEP8で実装する。
 
 ---
 
