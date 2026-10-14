@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { me, posts, recruitments, practiceRecords } from '../data';
+import { me, posts, recruitments } from '../data';
+import { getAllPractices } from '../lib/practiceApi';
+import type { PracticeRow } from '../lib/practiceApi';
 import { API_BASE, toPiece } from '../lib/repertoireApi';
 import type { RepertoireResponse } from '../lib/repertoireApi';
 import Avatar from '../components/Avatar';
-import AudioPlayer from '../components/AudioPlayer';
 import { TrophyCard } from '../components/Trophy';
 import {
   Heart,
@@ -60,6 +61,8 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [myRepertoire, setMyRepertoire] = useState<Piece[]>([]);
   const [repertoireError, setRepertoireError] = useState('');
   const [repertoireLoading, setRepertoireLoading] = useState(true);
+  const [myPracticeRecords, setMyPracticeRecords] = useState<PracticeRow[]>([]);
+  const [practiceError, setPracticeError] = useState('');
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -145,7 +148,22 @@ export default function MyPage({ navigate }: MyPageProps) {
     myRecruitments.push(recruitments[0], recruitments[2]);
   }
 
-  const myPracticeRecords = practiceRecords;
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setMyPracticeRecords([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const rows = await getAllPractices(getToken);
+        if (active) setMyPracticeRecords(rows);
+      } catch (e) {
+        if (active) setPracticeError(e instanceof Error ? e.message : '練習記録の取得に失敗しました。');
+      }
+    })();
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, getToken]);
   const showPosts = filter === 'all' || filter === 'posts';
   const showRecruitments = filter === 'all' || filter === 'recruitments';
   const showPractice = filter === 'all' || filter === 'practice';
@@ -360,56 +378,27 @@ export default function MyPage({ navigate }: MyPageProps) {
       </div>
 
       {showPractice && (
-        <div className="space-y-4 mt-3">
-          {myPracticeRecords.map((record) => {
-            const total = record.entries.reduce((s, e) => s + e.minutes, 0);
-            return (
-              <div
-                key={record.id}
-                className="bg-white rounded-2xl border border-ink-100 overflow-hidden animate-slide-up"
-              >
-                <div className="flex items-center justify-between bg-ink-50 px-4 py-2.5 border-b border-ink-100">
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-ink-800">
-                    <Calendar size={14} className="text-teal-600" /> {record.date}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-teal-700 font-medium">
-                    <Clock size={12} /> {total} min
-                  </span>
-                </div>
-                <div className="divide-y divide-ink-50">
-                  {record.entries.map((entry, ei) => (
-                    <div key={ei} className="p-4">
-                      <div className="flex items-start gap-2 mb-2">
-                        <Music2 size={16} className="text-teal-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink-800">
-                            <span className="italic text-ink-500">{entry.piece.composer}</span> / {entry.piece.title}
-                          </p>
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md text-xs font-medium">
-                            {entry.minutes} min
-                          </span>
-                        </div>
-                      </div>
-                      {entry.comment && (
-                        <p className="text-xs text-ink-500 leading-relaxed pl-6 mb-2">
-                          {entry.comment}
-                        </p>
-                      )}
-                      {entry.audioTitle && entry.audioDuration && (
-                        <div className="pl-6">
-                          <AudioPlayer
-                            title={entry.audioTitle}
-                            duration={entry.audioDuration}
-                            compact
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+        <div className="space-y-3 mt-3">
+          <h2 className="text-sm font-medium text-ink-700">練習記録</h2>
+          {practiceError && <p role="alert" className="text-sm text-red-600">{practiceError}</p>}
+          {!practiceError && myPracticeRecords.length === 0 &&
+            <p className="text-sm text-ink-500">練習記録はまだありません。</p>}
+          {myPracticeRecords.map(record => (
+            <button
+              key={record.id}
+              onClick={() => navigate('practiceDetail', { id: record.id })}
+              className="w-full p-4 text-left bg-white rounded-xl border border-ink-100 hover:border-teal-300"
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex gap-1.5 items-center text-ink-800"><Calendar size={14} /> {record.practice_date}</span>
+                <span className="flex gap-1 items-center text-teal-700"><Clock size={12} /> {record.duration_minutes}分</span>
               </div>
-            );
-          })}
+              <p className="text-sm mt-2 text-ink-800">
+                <span className="italic text-ink-500">{record.composer_name}</span> / {record.piece_title}
+              </p>
+              {record.comment && <p className="text-xs text-ink-500 mt-1">{record.comment}</p>}
+            </button>
+          ))}
         </div>
       )}
     </div>
