@@ -8,7 +8,12 @@ import { Calendar, ChevronLeft, ChevronRight, Clock, Music2, Plus } from 'lucide
 type Props = { navigate: (s: ScreenName, params?: Record<string, string>) => void };
 type View = 'date' | 'piece';
 type Period = 'today' | 'week' | 'month';
-const ymd = (d: Date) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+const ymd = (date: Date) =>
+  [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 function bounds(period: Period, date: Date) {
   const a = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const b = new Date(a);
@@ -34,7 +39,9 @@ export default function Practice({ navigate }: Props) {
   const fromTo = history ? monthBounds(month.year, month.month) : undefined;
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      return;
+    }
     if (!isSignedIn) {
       setRecords([]);
       setLoading(false);
@@ -46,11 +53,17 @@ export default function Practice({ navigate }: Props) {
     (async () => {
       try {
         const rows = await getAllPractices(getToken, fromTo?.[0], fromTo?.[1]);
-        if (active) setRecords(rows);
+        if (active) {
+          setRecords(rows)
+        }
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。');
+        if (active) {
+          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。')
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false)
+        }
       }
     })();
     return () => { active = false; };
@@ -59,11 +72,19 @@ export default function Practice({ navigate }: Props) {
   const now = todayLocal();
   const today = new Date(Number(now.slice(0, 4)), Number(now.slice(5, 7)) - 1, Number(now.slice(8, 10)));
   const periodRange = bounds(period, today);
-  const actualMinutes = records.filter(r => r.practice_date >= periodRange[0] && r.practice_date <= periodRange[1])
-    .reduce((sum, r) => sum + r.duration_minutes, 0);
+  const actualMinutes = records
+    .filter(
+      (record) =>
+        record.practice_date >= periodRange[0] &&
+        record.practice_date <= periodRange[1],
+    )
+    .reduce((sum, record) => sum + record.duration_minutes, 0);
   const dayGroups = useMemo(() => {
     const map = new Map<string, PracticeRow[]>();
-    records.forEach(r => map.set(r.practice_date, [...(map.get(r.practice_date) ?? []), r]));
+    records.forEach((record) => {
+      const existing = map.get(record.practice_date) ?? [];
+      map.set(record.practice_date, [...existing, record]);
+    });
     return [...map];
   }, [records]);
   const byPiece = useMemo(() => {
@@ -89,10 +110,12 @@ export default function Practice({ navigate }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <h1 className="font-serif text-2xl font-bold text-ink-900">{history ? '過去の練習' : '練習管理'}</h1>
         <div className="flex gap-2">
-          <button onClick={() => setHistory(!history)} className="px-3 py-2 border border-ink-200 rounded-xl bg-white text-sm">
+          <button onClick={() => setHistory(!history)}
+            className="px-3 py-2 border border-ink-200 rounded-xl bg-white text-sm">
             {history ? '練習管理へ戻る' : '過去の練習を見る'}
           </button>
-          <button onClick={() => navigate('createPractice')} className="flex items-center gap-1 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-medium">
+          <button onClick={() => navigate('createPractice')}
+            className="flex items-center gap-1 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-medium">
             <Plus size={16} /> 練習を記録
           </button>
         </div>
@@ -116,13 +139,16 @@ export default function Practice({ navigate }: Props) {
               ))}
             </div>
           </div>
-          <p className="text-3xl font-semibold text-teal-700">{actualMinutes} <span className="text-base font-normal">分</span></p>
+          <p className="text-3xl font-semibold text-teal-700">{actualMinutes} <span
+            className="text-base font-normal">分</span></p>
           <p className="text-xs text-ink-500 mt-1">記録した練習時間の合計（目標設定は後続STEP）</p>
         </div>
       )}
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setView('date')} className={`px-4 py-2 rounded-lg text-sm ${view === 'date' ? 'bg-teal-600 text-white' : 'bg-white border border-ink-200'}`}>日付別</button>
-        <button onClick={() => setView('piece')} className={`px-4 py-2 rounded-lg text-sm ${view === 'piece' ? 'bg-teal-600 text-white' : 'bg-white border border-ink-200'}`}>曲別</button>
+        <button onClick={() => setView('date')}
+          className={`px-4 py-2 rounded-lg text-sm ${view === 'date' ? 'bg-teal-600 text-white' : 'bg-white border border-ink-200'}`}>日付別</button>
+        <button onClick={() => setView('piece')}
+          className={`px-4 py-2 rounded-lg text-sm ${view === 'piece' ? 'bg-teal-600 text-white' : 'bg-white border border-ink-200'}`}>曲別</button>
       </div>
       {loading && <p className="text-sm text-ink-600">練習記録を読み込み中...</p>}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
@@ -134,7 +160,8 @@ export default function Practice({ navigate }: Props) {
             <section key={date} className="space-y-2">
               <div className="flex justify-between items-center text-sm text-ink-700">
                 <h2 className="font-semibold flex gap-2 items-center"><Calendar size={16} /> {date}</h2>
-                <span><Clock size={14} className="inline" /> 合計 {rows.reduce((sum, r) => sum + r.duration_minutes, 0)} 分</span>
+                <span><Clock size={14}
+                  className="inline" /> 合計 {rows.reduce((sum, r) => sum + r.duration_minutes, 0)} 分</span>
               </div>
               {rows.map(r => (
                 <button key={r.id} onClick={() => navigate('practiceDetail', { id: r.id })}
@@ -142,7 +169,8 @@ export default function Practice({ navigate }: Props) {
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2 text-sm text-ink-900">
                       <Music2 size={16} className="text-teal-600" />
-                      <span><span className="italic text-ink-500">{r.composer_name}</span> / {r.piece_title}</span>
+                      <span><span
+                        className="italic text-ink-500">{r.composer_name}</span> / {r.piece_title}</span>
                     </span>
                     <span className="text-teal-700 text-sm font-semibold whitespace-nowrap">{r.duration_minutes}分</span>
                   </div>
