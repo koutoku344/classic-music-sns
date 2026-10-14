@@ -155,6 +155,9 @@ export async function handleMedia(
       return response({ error: "media_storage_unavailable" }, 503, headers);
     }
     const key = `users/${userId}/media/${crypto.randomUUID()}`;
+    // Sign before reserving quota: signature errors must not leave an unusable
+    // pending reservation in Neon.
+    const uploadUrl = await signUrl(env, key, "PUT", 900, mimeType);
     let mediaId: string;
     try {
       // This PL/pgSQL function locks the owner row before checking concurrent reservations.
@@ -172,7 +175,6 @@ export async function handleMedia(
       throw error;
     }
     // A signed PUT requires this exact Content-Type header on the browser request.
-    const uploadUrl = await signUrl(env, key, "PUT", 900, mimeType);
     return response({
       mediaId, uploadUrl, method: "PUT",
       headers: { "Content-Type": mimeType }, expiresInSeconds: 900
