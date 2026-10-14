@@ -448,3 +448,24 @@ Error Responseは共通形式とする。
 * Mediaの通常削除はLogical Deleteとし、物理削除を分離する
 * Piece Master管理APIは一般User APIと分離する
 * API詳細なRequest / Response Schemaは詳細設計で定義する
+
+---
+
+## STEP8実装API（既存の一般構想よりこちらを優先）
+すべてのMedia管理APIはClerk認証必須。JWTから解決した本人の内部`user_id`で認可する。`object_key`や`user_id`のクライアント指定は禁止。APIのルートは現在の実装方針に合わせ`/media`等とし、旧設計書の`/api/v1`は将来の統一検討対象。
+
+| Method | Endpoint | 内容 |
+| --- | --- | --- |
+| POST | `/media/upload` | type・MIME・サイズ・容量・頻度を検査してpending予約を作り、単一PUT用署名付きURLを返す |
+| POST | `/media/{id}/complete` | 本人のR2 ObjectをHEAD検証しreadyへ確定。冪等 |
+| GET | `/media` | 本人のready・未削除Mediaをページング取得。種別・曲関連を絞り込み可 |
+| GET | `/media/usage` | 有効・最近削除・予約中の容量および上限を取得 |
+| GET | `/media/deleted` | 本人の最近削除したMediaをページング取得 |
+| POST | `/media/{id}/read-url` | 本人専用の短寿命再生URL発行 |
+| DELETE | `/media/{id}` | 参照がないことを確認して論理削除 |
+| POST | `/media/{id}/restore` | 30日以内の論理削除Mediaを復元 |
+| DELETE | `/media/{id}/permanent` | 参照なしを再検証しR2物理削除とDB整理 |
+
+練習記録POST/PATCHに任意の`audioMediaId`を追加する。nullで関連解除。本人のready・未削除・audio型のみ許可し、他人のMedia IDは404扱い。練習記録削除はMedia本体を保持する。
+
+フロー: upload許可（quota予約）→ ClientのR2単一PUT → complete（HEADで実サイズと存在確認）→ PracticeへのID紐づけ。未完了・失敗時は期限切れ予約と残存Objectを定期回収。期限切れ署名URLや不正なContent-Type・サイズは拒否／無効化する。大容量の失敗時はURLを取り直して全体再送する（multipart resumeなし）。
