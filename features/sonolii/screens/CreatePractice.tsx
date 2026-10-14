@@ -78,11 +78,11 @@ export default function CreatePractice({ navigate, editId }: Props) {
         }
       } catch (e) {
         if (active) {
-          setError(e instanceof Error ? e.message : 'データの取得に失敗しました。')
+          setError(e instanceof Error ? e.message : 'データの取得に失敗しました。');
         }
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     })();
