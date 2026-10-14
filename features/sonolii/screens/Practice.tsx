@@ -54,15 +54,15 @@ export default function Practice({ navigate }: Props) {
       try {
         const rows = await getAllPractices(getToken, fromTo?.[0], fromTo?.[1]);
         if (active) {
-          setRecords(rows)
+          setRecords(rows);
         }
       } catch (e) {
         if (active) {
-          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。')
+          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。');
         }
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     })();
