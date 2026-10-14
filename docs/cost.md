@@ -239,3 +239,13 @@ Scale Only Required Component
 User増加に伴う正常なCost増加と、Bot・Bug・非効率な実装による不要なCost増加を区別する。
 
 Cost削減のみを目的としてSecurity、Data保護、主要機能を損なう変更は行わない。
+
+---
+
+## STEP8容量・転送コスト設計
+- Media本体はCloudflare R2へ保存する。Frontendから単一PUTで直接転送し、Workerによるファイル本体中継・変換・常時稼働サーバーは使用しない。
+- 1ファイル上限は音声200MB、画像10MB。ファイルは再圧縮せず、保存済みMediaを複数の記録・将来の投稿で参照してもR2 Objectを増やさない。
+- User QuotaはFree 3GB / Premium 20GB（現行設計値）。予約中pending容量も加算し、並列アップロードによる上限超過を防ぐ。
+- 通常削除時は30日間R2に保持され使用容量から差し引かない。明示的完全削除または30日経過後の物理削除成功時に初めて容量を解放する。
+- R2コストは保存GB-month、書込み・読取りオペレーションなどによって変動する。単価・無料枠はR2ダッシュボードで実装時に再確認。Usage/AlertだけでなくバックエンドのHard Limitを用いる。
+- 音声200MBの単一PUTは通信失敗で全量再送となるため、Clientで進捗・エラー・全体再試行を案内。multipartはMVP対象外。
