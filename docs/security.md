@@ -72,7 +72,7 @@ AuthorizationはBackend APIで実施する。Path ParameterやRequest Bodyの us
 | UserPiece参照・作成・編集 | Ownerのみ（削除APIはSTEP7では用意しない） |
 | Practice参照・作成・更新・削除 | Ownerのみ |
 | Performance更新・削除 | Ownerのみ |
-| 非公開Performance閲覧 | Ownerのみ |
+| 練習記録・未投稿Media閲覧 | Ownerのみ |
 | Post更新・削除 | 投稿者のみ |
 | Comment削除 | 原則Comment投稿者のみ |
 | Media削除 | Ownerのみ |
@@ -243,7 +243,7 @@ CSPの許可先はClerk、Stripe、R2等の実際の通信先を確認して詳�
 
 必要以上の個人情報を収集しない。RecruitmentやProfileで住所、電話番号、個人Email等を公開必須項目にしない。Conversation / Messageは公開しない。
 
-Account削除時のUser Profile、Post、Comment、Practice、Performance、Media、Message、Recruitment / Application、Subscriptionの扱いは実装前に詳細化し、法令・決済上必要な保持とUser要求による削除を区別する。
+Account削除時のUser Profile、Post、Comment、Practice、Media、Message、Recruitment / Application、Subscriptionの扱いは実装前に詳細化し、法令・決済上必要な保持とUser要求による削除を区別する。
 
 ---
 
