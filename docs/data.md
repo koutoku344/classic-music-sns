@@ -19,7 +19,6 @@ Composer
    └──< Piece（共通マスタ）
           ├──< Repertoire >── User
           ├──< PracticeRecord >── User
-          ├──< Performance ── User
           └──< Recruitment
 
 User
@@ -45,7 +44,7 @@ User
  └── Subscription
 ```
 
-`Composer`、`Piece`、`Performance`、`Post`を独立Entityとする。
+`Composer`、`Piece`、`Post`、`Media`を独立Entityとする。`Performance`は採用しない。
 
 ---
 
@@ -58,7 +57,6 @@ User
 | Piece              | 楽曲Master                |
 | UserPiece          | ユーザー固有の手動登録曲（本人のみ利用） |
 | Repertoire         | ユーザーのレパートリー             |
-| Performance        | 演奏履歴                    |
 | PracticeRecord     | 1件1曲の練習記録（同日複数件可）    |
 | Post               | SNS投稿                   |
 | Media              | 音声・画像Metadata           |
@@ -197,18 +195,9 @@ Piece DBを段階的に拡充
 
 ---
 
-## 4.5 Performance
+## 4.5 Mediaの採用方針
 
-| 項目 | 内容 |
-| --- | --- |
-| id | Performance ID |
-| user_id | User |
-| piece_id | Piece（将来、user_piece_id対応をSTEP8で検討） |
-| performed_at | 演奏日時 |
-| visibility | 公開範囲 |
-| created_at | 登録日時 |
-
-同一Pieceについて複数回のPerformanceを登録可能とする。
+独立したPerformance Entityは作成しない。音声・画像をMediaとして扱い、練習記録や将来の投稿から参照する。詳細は文末のSTEP8確定モデルを参照。
 
 ---
 
