@@ -30,15 +30,15 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
         const res = await apiFetch(`/practices/${encodeURIComponent(recordId)}`, getToken);
         const data = await res.json() as { practice: PracticeRow };
         if (active) {
-          setRecord(data.practice)
+          setRecord(data.practice);
         }
       } catch (e) {
         if (active) {
-          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。')
+          setError(e instanceof Error ? e.message : '練習記録を取得できませんでした。');
         }
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     })();
