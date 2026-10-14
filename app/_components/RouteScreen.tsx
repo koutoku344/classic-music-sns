@@ -66,7 +66,9 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     let href = routeMap[next] ?? "/posts";
     if (next === "postDetail") href = `/posts/${targetId}`;
     if (next === "practiceDetail") href = `/practice/${targetId}`;
-    if (next === "createPractice" && targetId) href = `/practice/${targetId}/edit`;
+    if (next === "createPractice" && targetId) {
+      href = `/practice/${targetId}/edit`;
+    }
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
     if (next === "userProfile") href = `/users/${targetId}`;
