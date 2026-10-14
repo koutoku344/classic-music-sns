@@ -178,7 +178,7 @@ function parseUserPiece(value: unknown): { composer: string; title: string } | n
 }
 
 function validDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [y, m, d] = value.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
   return date.getUTCFullYear() === y && date.getUTCMonth() + 1 === m && date.getUTCDate() === d;
@@ -276,11 +276,11 @@ export default {
     const repDelete = request.method === "DELETE" && !!repMatch;
     const userPiecesList = request.method === "GET" && url.pathname === "/me/pieces";
     const userPiecesCreate = request.method === "POST" && url.pathname === "/me/pieces";
-    const userPieceMatch = url.pathname.match(/^\\/me\\/pieces\\/([^/]+)$/);
+        const userPieceMatch = url.pathname.match(/^\/me\/pieces\/([^/]+)$/);
     const userPiecesPatch = request.method === "PATCH" && !!userPieceMatch;
     const practicesList = request.method === "GET" && url.pathname === "/practices";
     const practicesCreate = request.method === "POST" && url.pathname === "/practices";
-    const practiceMatch = url.pathname.match(/^\\/practices\\/([^/]+)$/);
+        const practiceMatch = url.pathname.match(/^\/practices\/([^/]+)$/);
     const practiceGet = request.method === "GET" && !!practiceMatch;
     const practicePatch = request.method === "PATCH" && !!practiceMatch;
     const practiceDelete = request.method === "DELETE" && !!practiceMatch;
@@ -618,14 +618,14 @@ export default {
         const cursor = url.searchParams.get("cursor");
         if ((from !== null && !validDate(from)) || (to !== null && !validDate(to)) ||
           ((from === null) !== (to === null)) || (from !== null && to !== null && from > to) ||
-          !/^\\d+$/.test(limitValue) || Number(limitValue) < 1 || Number(limitValue) > 100) {
+          !/^\d+$/.test(limitValue) || Number(limitValue) < 1 || Number(limitValue) > 100) {
           return reply({ error: "invalid_query" }, 400, headers);
         }
         let offset = 0;
         if (cursor) {
           try {
             const decoded = atob(cursor);
-            if (!/^\\d+$/.test(decoded)) throw new Error("invalid_cursor");
+            if (!/^\d+$/.test(decoded)) throw new Error("invalid_cursor");
             offset = Number(decoded);
             if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw new Error("invalid_cursor");
           } catch {
