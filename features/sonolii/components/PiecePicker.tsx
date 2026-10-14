@@ -76,13 +76,14 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
 
   const handleFreeConfirm = () => {
     if (freeComposer.trim() && freeTitle.trim()) {
-      handleSelectPiece({
+      const manualPiece: SelectablePiece = {
         id: `free-${Date.now()}`,
         composer: freeComposer.trim(),
         title: freeTitle.trim(),
         status: 'practicing',
         source: 'manual',
-      });
+      };
+      handleSelectPiece(manualPiece);
     }
   };
 
