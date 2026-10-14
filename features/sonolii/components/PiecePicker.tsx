@@ -16,7 +16,15 @@ interface PiecePickerProps {
 type SearchMode = 'composer' | 'title';
 type LibraryMode = 'owned' | 'catalog';
 
-export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '曲', allowFreeInput = true, recentPieces = [], ownedPieces = [] }: PiecePickerProps) {
+export default function PiecePicker({
+  pieces,
+  selectedPiece,
+  onSelect,
+  label = '曲',
+  allowFreeInput = true,
+  recentPieces = [],
+  ownedPieces = [],
+}: PiecePickerProps) {
   const [open, setOpen] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>('composer');
   const [libraryMode, setLibraryMode] = useState<LibraryMode>('owned');
@@ -126,7 +134,8 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl animate-slide-up max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-ink-100 flex-shrink-0">
               <h3 className="font-serif font-bold text-ink-900">曲を選択</h3>
-              <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center text-ink-400 hover:text-ink-600 hover:bg-ink-50 rounded-lg">
+              <button onClick={handleClose}
+                className="w-8 h-8 flex items-center justify-center text-ink-400 hover:text-ink-600 hover:bg-ink-50 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -136,7 +145,8 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-ink-700">手動入力</p>
-                    <button onClick={() => setShowFreeInput(false)} className="text-ink-400 hover:text-burgundy-500">
+                    <button onClick={() => setShowFreeInput(false)}
+                      className="text-ink-400 hover:text-burgundy-500">
                       <X size={18} />
                     </button>
                   </div>
@@ -196,10 +206,26 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
                   )}
 
                   <div className="flex gap-1 bg-ink-50 rounded-xl p-1 mb-3">
-                    <button onClick={() => setLibraryMode('owned')}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium ${libraryMode === 'owned' ? 'bg-white shadow-sm text-ink-900' : 'text-ink-500'}`}>自分の曲</button>
-                    <button onClick={() => setLibraryMode('catalog')}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium ${libraryMode === 'catalog' ? 'bg-white shadow-sm text-ink-900' : 'text-ink-500'}`}>曲を探す</button>
+                    <button
+                      onClick={() => setLibraryMode('owned')}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                        libraryMode === 'owned'
+                          ? 'bg-white shadow-sm text-ink-900'
+                          : 'text-ink-500'
+                      }`}
+                    >
+                      自分の曲
+                    </button>
+                    <button
+                      onClick={() => setLibraryMode('catalog')}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                        libraryMode === 'catalog'
+                          ? 'bg-white shadow-sm text-ink-900'
+                          : 'text-ink-500'
+                      }`}
+                    >
+                      曲を探す
+                    </button>
                   </div>
                   {libraryMode === 'owned' ? (
                     <div className="space-y-1 mb-3 max-h-64 overflow-y-auto">
@@ -207,12 +233,18 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
                         <button key={`${p.source}:${p.id}`} onClick={() => handleSelectPiece(p)}
                           className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left hover:bg-teal-50/50">
                           <Music2 size={16} className="text-teal-600 flex-shrink-0" />
-                          <span className="text-sm text-ink-800"><span className="italic text-ink-500">{p.composer}</span> / {p.title}</span>
+                          <span className="text-sm text-ink-800"><span
+                            className="italic text-ink-500">{p.composer}</span> / {p.title}</span>
                         </button>
                       ))}
-                      {ownedPieces.length === 0 && <p className="py-4 text-sm text-ink-500 text-center">登録した曲はまだありません。</p>}
+                      {ownedPieces.length === 0 && (
+                        <p className="py-4 text-sm text-ink-500 text-center">
+                          登録した曲はまだありません。
+                        </p>
+                      )}
                     </div>
-                  ) : (<>
+                  ) : (
+                    <>
                   {/* Tab switch */}
                   <div className="flex gap-1 bg-ink-50 rounded-xl p-1 mb-3">
                     <button
@@ -365,7 +397,8 @@ export default function PiecePicker({ pieces, selectedPiece, onSelect, label = '
                     </>
                   )}
 
-                  </>)}
+                    </>
+                  )}
 
                   {allowFreeInput && (
                     <button
