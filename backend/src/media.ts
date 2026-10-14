@@ -1,6 +1,7 @@
-import { neon } from "@neondatabase/serverless";
+import type { NeonQueryFunction } from "@neondatabase/serverless";
 
-type Sql = ReturnType<typeof neon>;
+// The default Neon client returns row objects, not array/full-results unions.
+type Sql = NeonQueryFunction<false, false>;
 
 export interface MediaBucket {
   head(key: string): Promise<{ size: number; httpMetadata?: { contentType?: string } } | null>;
@@ -103,7 +104,7 @@ async function signUrl(
     "AWS4-HMAC-SHA256", now, scope, await sha256(canonicalRequest)
   ].join("\n");
 
-  let keyBytes = new TextEncoder().encode(`AWS4${env.R2_SECRET_ACCESS_KEY}`);
+  let keyBytes: Uint8Array<ArrayBufferLike> = new TextEncoder().encode(`AWS4${env.R2_SECRET_ACCESS_KEY}`);
   for (const part of [date, "auto", "s3", "aws4_request"]) {
     keyBytes = await hmac(keyBytes, part);
   }
