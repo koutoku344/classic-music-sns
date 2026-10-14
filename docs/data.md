@@ -16,16 +16,17 @@
 ```text
 Composer
    │
-   └──< Piece
+   └──< Piece（共通マスタ）
           ├──< Repertoire >── User
+          ├──< PracticeRecord >── User
           ├──< Performance ── User
-          ├──< PracticeItem
           └──< Recruitment
 
 User
- ├──< PracticeRecord
- │       └──< PracticeItem
- │
+ ├──< UserPiece（本人の手動登録曲）
+ │       ├──< Repertoire
+ │       └──< PracticeRecord
+ ├──< PracticeRecord（1記録 = 1曲）
  ├──< Post
  │      ├──< Media
  │      ├──< Comment
@@ -55,10 +56,10 @@ User
 | User               | ユーザー・プロフィール             |
 | Composer           | 作曲家Master               |
 | Piece              | 楽曲Master                |
+| UserPiece          | ユーザー固有の手動登録曲（本人のみ利用） |
 | Repertoire         | ユーザーのレパートリー             |
 | Performance        | 演奏履歴                    |
-| PracticeRecord     | 日付単位の練習記録             |
-| PracticeItem       | 練習記録内の曲ごとの練習内容       |
+| PracticeRecord     | 1件1曲の練習記録（同日複数件可）    |
 | Post               | SNS投稿                   |
 | Media              | 音声・画像Metadata           |
 | Comment            | コメント・Timestamp Feedback |
@@ -163,62 +164,72 @@ Piece DBを段階的に拡充
 
 ---
 
-## 4.4 Repertoire
+## 4.4 UserPiece / Repertoire
 
-| 項目         | 内容            |
-| ---------- | ------------- |
-| id         | ID            |
-| user_id    | User          |
-| piece_id   | Piece         |
-| status     | 練習中 / レパートリー等 |
-| created_at | 登録日時          |
+`user_pieces` は本人が手動入力した曲の独立マスタで、レパートリーから削除しても消さない。共通マスタ`pieces`とは別IDで管理し、同じ作曲者名・曲名でも自動統合しない。
 
-原則 `user_id + piece_id` をUniqueとする。
+### user_pieces
+
+| 項目 | 型・制約 |
+| --- | --- |
+| id | UUID PK |
+| user_id | UUID NOT NULL / users FK / ON DELETE CASCADE |
+| composer | VARCHAR(120) NOT NULL / trim後非空 |
+| title | VARCHAR(240) NOT NULL / trim後非空 |
+| created_at / updated_at | TIMESTAMPTZ NOT NULL |
+
+同一ユーザー内の `lower(btrim(composer))` + `lower(btrim(title))` をUNIQUEとする（内部の空白差・略称差は統合しない）。既登録の組み合わせを再入力したときは、新規IDを発行せず既存IDを返す。編集APIは提供するがSTEP7で編集画面は設けず、削除APIも設けない。
+
+### user_repertoire（STEP7変更後）
+
+| 項目 | 型・制約 |
+| --- | --- |
+| id | UUID PK |
+| user_id | UUID NOT NULL / users FK |
+| piece_id | UUID NULL / 共通pieces FK |
+| user_piece_id | UUID NULL / 本人のuser_piecesを参照 |
+| status | practicing / repertoire / performed（既存DB制約を維持） |
+| created_at / updated_at | TIMESTAMPTZ NOT NULL |
+
+`piece_id` と `user_piece_id` は必ずどちらか一方のみを指定。所有者と楽曲IDの組み合わせで複合FKを設定し、他人の `user_pieces` を参照させない。マスタ曲とユーザー固有曲はそれぞれユーザー内で重複登録を防止する。レパートリー削除は `user_repertoire` の行のみを削除する。
+
+既存の `custom_composer`・`custom_title` はSTEP7で廃止する。既存手動曲が**0件**の場合のみマイグレーション可能とし、残存する場合はトランザクションを中断してデータ損失を防ぐ。移行処理は今回実装しない。
 
 ---
 
 ## 4.5 Performance
 
-| 項目           | 内容             |
-| ------------ | -------------- |
-| id           | Performance ID |
-| user_id      | User           |
-| piece_id     | Piece          |
-| performed_at | 演奏日時           |
-| visibility   | 公開範囲           |
-| created_at   | 登録日時           |
+| 項目 | 内容 |
+| --- | --- |
+| id | Performance ID |
+| user_id | User |
+| piece_id | Piece（将来、user_piece_id対応をSTEP8で検討） |
+| performed_at | 演奏日時 |
+| visibility | 公開範囲 |
+| created_at | 登録日時 |
 
 同一Pieceについて複数回のPerformanceを登録可能とする。
 
 ---
 
-## 4.6 PracticeRecord / PracticeItem
+## 4.6 PracticeRecord
 
-練習記録は日付単位の`PracticeRecord`と、その日に練習した曲単位の`PracticeItem`に分離する。
+`practice_records` は**1行 = 1曲の練習記録**であり、`practice_items` は作成しない。同一ユーザー・日付・曲に複数行を許可する。
 
-### PracticeRecord
-
-| 項目 | 内容 |
+| 項目 | 型・制約 |
 | --- | --- |
-| id | Practice Record ID |
-| user_id | User |
-| practice_date | 練習日 |
-| created_at | 作成日時 |
-| updated_at | 更新日時 |
+| id | UUID PK |
+| user_id | UUID NOT NULL / users FK / ON DELETE CASCADE |
+| piece_id | UUID NULL / 共通pieces FK |
+| user_piece_id | UUID NULL / 本人のuser_piecesを参照 |
+| practice_date | DATE NOT NULL |
+| duration_minutes | INTEGER NOT NULL / 1〜1440 |
+| comment | VARCHAR(2000) NOT NULL DEFAULT '' |
+| created_at / updated_at | TIMESTAMPTZ NOT NULL |
 
-### PracticeItem
+`piece_id` と `user_piece_id` の一方のみ設定するCHECK制約を適用。本人の手動曲のみ参照できるよう `(user_id, user_piece_id)` 複合FKを設定する。曲別実績は、共通曲なら `piece_id`、手動曲なら `user_piece_id` で集計する。日別・週別・月別は `practice_date` で集計する。タイムゾーン変換で練習日を変えない。
 
-| 項目 | 内容 |
-| --- | --- |
-| id | Practice Item ID |
-| practice_record_id | PracticeRecord |
-| piece_id | Piece |
-| duration_minutes | 練習時間（分） |
-| comment | 曲ごとのコメント・課題等 |
-| created_at | 作成日時 |
-| updated_at | 更新日時 |
-
-1件のPracticeRecordに複数のPracticeItemを登録可能とする。同じデータを日付別・曲別の双方から参照する。
+音声オブジェクトのメタデータ・練習記録への紐づけはSTEP8で設計し、本STEPではオブジェクトキーを追加しない。
 
 ---
 
@@ -441,7 +452,9 @@ Piece B ─┘
 | ------------ | ------------------------------------------ |
 | User         | Clerk ID Unique                            |
 | Repertoire   | User + Piece Unique                        |
-| PracticeRecord | User + Practice Dateを原則Unique |
+| UserPiece | User + 正規化した作曲者名・曲名 Unique |
+| Repertoire | User + PieceまたはUserPiece Unique |
+| PracticeRecord | User + Practice DateにUniqueを設定しない（複数記録可） |
 | Like         | User + Post Unique                         |
 | Follow       | Follower + Followee Unique / Self Follow禁止 |
 | Application  | Recruitment + User Unique                  |
@@ -476,8 +489,8 @@ Pieceについては他データから参照されるため、重複・修正時
 * Post：`user_id`, `created_at`
 * Comment：`post_id`, `created_at`
 * Performance：`user_id`, `piece_id`, `performed_at`
-* PracticeRecord：`user_id`, `practice_date`
-* PracticeItem：`practice_record_id`, `piece_id`
+* UserPiece：`user_id`, `created_at`（名称の正規化Unique Indexとは別）
+* PracticeRecord：`user_id`, `practice_date DESC`, `created_at DESC`, `id DESC`
 * Like：`post_id`
 * Recruitment：`status`, `region`, `instrument`
 * Message：`conversation_id`, `created_at`

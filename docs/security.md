@@ -68,8 +68,9 @@ AuthorizationはBackend APIで実施する。Path ParameterやRequest Bodyの us
 | Resource / Operation | Authorization |
 | --- | --- |
 | User Profile更新 | 本人のみ |
-| Repertoire更新・削除 | Ownerのみ |
-| Practice更新・削除 | Ownerのみ |
+| Repertoire参照・更新・削除 | Ownerのみ |
+| UserPiece参照・作成・編集 | Ownerのみ（削除APIはSTEP7では用意しない） |
+| Practice参照・作成・更新・削除 | Ownerのみ |
 | Performance更新・削除 | Ownerのみ |
 | 非公開Performance閲覧 | Ownerのみ |
 | Post更新・削除 | 投稿者のみ |
@@ -84,7 +85,9 @@ AuthorizationはBackend APIで実施する。Path ParameterやRequest Bodyの us
 
 ## 5.1 IDOR対策
 
-Resource IDを書き換えて他UserのPractice、Media、Conversation等へアクセスする攻撃を防止する。各APIでResource取得後にOwner / Memberを必ず確認し、IDだけでアクセス可否を判断しない。
+Resource IDを書き換えて他UserのPractice、Media、Conversation、UserPiece等へアクセスする攻撃を防止する。各APIでResource取得後にOwner / Memberを必ず確認し、IDだけでアクセス可否を判断しない。
+
+STEP7では user_pieces と practice_records は本人のJWTから導いた users.id で絞り込み、他人のIDと存在しないIDは区別せず404を返す。手動曲の参照には (user_id, user_piece_id) 複合外部キーを設定する。レパートリー削除は user_pieces を削除しない。
 
 ---
 

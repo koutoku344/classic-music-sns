@@ -55,8 +55,8 @@ My Page
 | S04 | Post Detail         | 投稿詳細・Comment                |
 | S05 | Create Post         | Post作成                      |
 | S06 | Practice            | 練習記録の確認                     |
-| S07 | Practice Detail     | 日単位の練習記録詳細                  |
-| S08 | Create Practice     | 日単位の練習記録作成                  |
+| S07 | Practice Detail     | 1件1曲の練習記録詳細                  |
+| S08 | Create Practice     | 1件1曲の練習記録作成・編集             |
 | S09 | Recruitment         | ALL / Follow募集閲覧            |
 | S10 | Recruitment Detail  | 募集詳細                        |
 | S11 | Create Recruitment  | 募集作成                        |
@@ -333,200 +333,43 @@ Pieceが存在しない場合は新規Piece登録を可能とする。
 
 ## S06 Practice
 
-自分の練習を記録・振り返る画面。
+1記録=1曲の練習管理。**同一日・同一曲でも複数記録**を登録できる。
 
-練習記録自体は**日付単位**で登録する。
+* 日付別：1件ごとの練習日・曲名・時間・コメント概要を表示し、記録をタップするとS07へ遷移
+* 曲別：共通曲は`piece_id`、ユーザー固有曲は`user_piece_id`ごとに合計時間・練習回数・履歴を表示
+* 日・週・月の実績時間を表示する。表示中の1ページ分のみではなく対象期間全体を集計する
+* 練習目標の達成率・目標値のDB永続化はSTEP7では行わない
+* 過去の練習は月ごとに確認可能とする
+* ［練習を記録］でS08へ遷移。記録がないときは空状態を表示
 
-一方で、記録したデータは以下の2つの観点から確認可能とする。
-
-```text
-┌────────────┬────────────┐
-│   日付別    │    曲別     │
-└────────────┴────────────┘
-```
-
-### 日付別
-
-1日ごとの練習内容を表示する。
-
-例：
-
-```text
-Practice                         ＋ Record
-────────────────────────────────────
-
-2026/09/30
-
-Bach
-Partita No.2
-60 min
-
-Chopin
-Etude Op.10-4
-60 min
-
-Total 120 min
-
-────────────────────────────────────
-
-2026/09/29
-
-Bach
-Partita No.2
-45 min
-
-Total 45 min
-```
-
-日付を選択するとPractice Detailへ遷移する。
-
-### 曲別
-
-Piece単位で過去の練習履歴を確認する。
-
-例：
-
-```text
-Bach
-Partita No.2
-
-9/30    60 min
-9/29    45 min
-9/27    30 min
-
-Total 135 min
-```
-
-```text
-Chopin
-Etude Op.10-4
-
-9/30    60 min
-9/28    40 min
-
-Total 100 min
-```
-
-同じ練習記録データを日付別 / 曲別の2つのViewで表示する。
+同一日に3曲練習した場合は、3件の記録として登録し、日別合計では3件を合算する。
 
 ---
 
 ## S07 Practice Detail
 
-1日単位の練習内容を確認する。
+1件の練習記録（1曲）を表示する。日付・作曲者・曲名・練習時間・コメントを表示し、本人のみ編集・削除できる。
 
-例：
-
-```text
-2026/09/30
-
-────────────────────
-
-Bach
-Partita No.2
-
-Practice Time
-60 min
-
-Comment
-Sinfonia後半を中心に練習。
-テンポを落として確認した。
-
-────────────────────
-
-Chopin
-Etude Op.10-4
-
-Practice Time
-60 min
-
-Comment
-右手のテンポを重点的に練習。
-
-────────────────────
-
-Total
-120 min
-
-Edit
-Delete
-```
-
-主要要素：
-
-* 練習日
-* Pieceごとの練習内容
-* 練習時間
-* Comment
-* 1日の合計練習時間
-* 編集
-* 削除
+* ［編集］→ S08（編集モード。保存成功後に詳細画面に戻る）
+* ［削除］→ 確認後にDELETE、成功したら練習一覧に戻る
+* 対象がない／他人のIDの場合はエラー状態を表示し、別の記録へフォールバックしない
+* 録音・音声再生機能はSTEP8へ移す
 
 ---
 
 ## S08 Create Practice
 
-1日単位で練習記録を登録する。
+新規登録・編集は同じフォームを利用し、**1回の保存では1曲のみ**扱う。
 
-最初に練習日を設定し、その日に練習したPieceを追加する。
+* 練習日（初期値はローカルの今日、APIはYYYY-MM-DD）
+* 曲選択：［自分の曲］（本人の手動曲＋レパートリー登録済みマスタ曲）／［曲を探す］（作曲者・曲名検索）／手動入力
+* 過去に手動入力した曲は `user_pieces.id` で再選択できる
+* 手動入力は作曲者名・曲名の組み合わせを正規化して照合し、既存曲ならIDを再利用する
+* 練習時間（整数1〜1440分）、コメント（最大2000文字）
+* 保存成功後のみ完了状態／一覧・詳細へ遷移し、失敗時には入力を保持する
+* 音声の録音・アップロード操作はSTEP7では非表示（STEP8で実装）
 
-例：
-
-```text
-Practice Record
-
-Date
-2026/09/30
-
-────────────────────
-
-Piece
-Bach / Partita No.2
-
-Practice Time
-60 min
-
-Comment
-Sinfonia後半を中心に練習
-
-────────────────────
-
-＋ Add Piece
-
-────────────────────
-
-Save
-```
-
-`＋ Add Piece`を選択すると、同じ日の練習曲を追加できる。
-
-```text
-Piece 1
-Bach / Partita No.2
-60 min
-Comment...
-
-Piece 2
-Chopin / Etude Op.10-4
-60 min
-Comment...
-
-＋ Add Piece
-```
-
-主要要素：
-
-* 練習日
-* Piece
-* 練習時間
-* PieceごとのComment
-* Piece追加
-* Piece削除
-* Save
-
-1日の練習記録に複数Pieceを登録可能とする。
-
-Piece Masterに存在しない場合は新規Piece登録を可能とする。
+既存の `PiecePicker` を共通利用し、IDの種類は `master` / `user` / `manual` で明示して識別する。本人のユーザー固有曲と他人の曲を混在させない。レパートリー登録操作でも同じ曲選択UIを使用する。
 
 ---
 
@@ -905,7 +748,7 @@ PCでは左Navigationに主要機能を一覧表示する構成を検討する�
 | 機能          | 見る             | 作る                  | 主目的     |
 | ----------- | -------------- | ------------------- | ------- |
 | Posts       | ALL / Follow投稿 | Post                | 演奏共有・交流 |
-| Practice    | 日付別 / 曲別練習履歴   | 日単位のPractice Record | 日々の練習管理 |
+| Practice    | 日付別 / 曲別練習履歴   | 1件1曲のPractice Record | 日々の練習管理 |
 | Recruitment | ALL / Follow募集 | Recruitment         | 演奏仲間探し  |
 | Search      | 検索結果           | -                   | 情報探索    |
 | Messages    | 通知・Chat        | Message             | User間交流 |
@@ -926,8 +769,7 @@ PCでは左Navigationに主要機能を一覧表示する構成を検討する�
 * Comment専用ページは設けずPost Detail上で作成する
 * Audio再生位置からTimestamp Commentを簡単に追加できるようにする
 * Timestamp選択で該当する音声位置へ移動できるようにする
-* Practiceは日付単位で登録する
-* 1日のPracticeに複数Pieceを登録可能とする
+* Practiceは1記録につき1曲とし、同一日・同一曲に複数件登録できる
 * Practiceは同一データを「日付別 / 曲別」で確認可能とする
 * Post選択でPost Detailへ遷移する
 * Recruitment選択でRecruitment Detailへ遷移する
