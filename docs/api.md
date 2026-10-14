@@ -99,14 +99,7 @@ PATCH body: `{"composer":"J.S. Bach","title":"Partita No.2 Allemande"}`。IDは�
 
 POSTは `{"pieceId":"UUID","status":"practicing"}` または `{"userPieceId":"UUID","status":"practicing"}`。どちらか一方だけ指定する。既存の `customComposer/customTitle` リクエストはSTEP7のFrontend更新後に廃止する。レスポンスは `piece_id` / `user_piece_id` と作曲者・曲名を返す。ほかのユーザーの `userPieceId` は404。
 
-## Performance
-
-| Method | Endpoint | 内容 |
-| --- | --- | --- |
-| POST | `/performances` | 演奏履歴登録 |
-| GET | `/performances/{id}` | 演奏履歴取得 |
-| PATCH | `/performances/{id}` | 演奏履歴更新 |
-| DELETE | `/performances/{id}` | 演奏履歴削除 |
+# STEP8以降、独立したPerformance APIは提供しない。
 
 ---
 
