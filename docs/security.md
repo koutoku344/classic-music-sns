@@ -400,3 +400,16 @@ ContainmentではCredential失効、Account / Endpoint制限、必要に応じ�
 本システムでは「Frontendから送られてきた情報を信用せず、Backend APIをセキュリティ境界として、認証・認可・入力検証・利用量制御を行う」ことを基本原則とする。
 
 Clerk、Neon、R2、Stripe等のManaged Serviceへ基盤Securityを委譲しつつ、Application固有のAuthorizationとBusiness RuleはBackend APIで一元管理する。
+
+---
+
+## STEP8 Media認可・検証（確定）
+- R2バケットはprivate。ClientにR2アクセスキー等を渡さない。PUT/GETの署名URLは対象Key・Method・Content-Type等を限定し、短寿命。CORSは許可したFrontend Originのみに設定する。
+- Media APIの所有者は認証JWTから解決し、`media.user_id`と照合する。他人のMediaを再生・参照・復元・削除・完全削除できない。Practiceの`audio_media_id`はOwner複合FKとBackendのtype/ready/deleted認可を両方使う。
+- Profileの`visibility`はpublic / followers / private。privateは本人以外にプロフィール詳細・投稿を非表示。followersの閲覧認可が実装されるまでは本人のみとする。Practiceと投稿していないMediaはプロフィールがpublicでも本人限定。
+- POST Upload許可時にはMIME許可リスト、申告Size上限（音声200,000,000 bytes／画像10,000,000 bytes）、予約容量を含むOwnerのQuota、Rate Limit、二重リクエストを検証する。並行リクエストによる容量突破を防ぐためDB側の排他・予約整合性を設計実装する。
+- 単一PUTはR2へ直接送信する。Backend WorkerにMedia本文を中継しない。アップロード完了時にHEADで存在・サイズ・保存属性を検証する。クライアントのMIME申告だけを信用せず、許可形式と内容の整合性はMVPで可能な範囲で確認する。
+- 期限切れpendingと未参照R2 Objectは回収対象。署名URLを発行した後の遅延PUTを含め、予約解除とObject清掃の競合・再試行・冪等性を考慮する。アカウント退会時のR2削除も別途実装対象。
+- 参照中Mediaを論理削除・物理削除しない。削除前に練習記録・将来の投稿の参照解除を要求する。物理削除成功を確認してから容量を解放する。通常削除は30日間保持・復元可能。
+- 発行済みRead URLは有効期限までは利用可能なため、公開設定変更時の即時失効は保証しない。STEP8のRead URLは本人専用、投稿向け公開閲覧はSTEP9で認可仕様を追加する。
+- ファイル内容、Authorizationヘッダー、Secret、署名URL全体はログに記録しない。
