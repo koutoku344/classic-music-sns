@@ -514,3 +514,7 @@ Pieceについては他データから参照されるため、重複・修正時
 - 使用容量は有効Mediaと論理削除Mediaの実サイズ、およびpendingの予約サイズで算出する。再利用参照によって同じMediaを重複加算しない。
 - 物理削除はR2削除の成功を確認してからメタデータを整理する。30日間の論理削除状態は`deleted_at` / `purge_at`で管理する。
 - 移行SQLは`db/migrations/009_create_media_and_practice_audio.sql`。既存Practiceデータに影響しないnullable列追加で、R2バケットやSecretsを作成しない。
+
+### STEP8追加マイグレーション010
+
+`db/migrations/010_reserve_media_upload.sql` は、ユーザー行を `FOR UPDATE` でロックしてストレージ上限（予約済みpendingを含む）と1分あたり10件のアップロード許可を原子的に判定するDB関数を作成する。009適用後、メディアアップロードAPIをデプロイする前に010を適用する。010は新たなメディアテーブルを作成せず既存データを削除しない。現段階のAPIはFreeプラン相当の3GB制限で実装し、Premium契約と20GB制限の実運用連動は課金機能実装時に必須対応とする。
