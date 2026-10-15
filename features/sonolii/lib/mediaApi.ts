@@ -16,7 +16,9 @@ async function authenticated(
 ): Promise<Response> {
   const token = await getToken();
   if (!token) throw new Error('ログインが必要です。');
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
     ...init,
     cache: 'no-store',
     headers: {
@@ -24,7 +26,10 @@ async function authenticated(
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       ...init.headers,
     },
-  });
+    });
+  } catch {
+    throw new Error('Backend APIへ接続できません。ローカルURLとBackendのCORS設定、ネットワークを確認してください。');
+  }
   if (!res.ok) {
     let reason = '';
     try {
@@ -82,11 +87,16 @@ export async function uploadAudio(file: File, getToken: TokenGetter): Promise<st
     headers: Record<string, string>;
   };
   // R2 signed URL must be called without Clerk authorization.
-  const upload = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers,
-    body: file,
-  });
+  let upload: Response;
+  try {
+    upload = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers,
+      body: file,
+    });
+  } catch {
+    throw new Error('R2への直接アップロードで通信エラーが発生しました。ブラウザのConsole/NetworkでCORSエラーとR2のAllowedOriginsを確認してください。');
+  }
   if (!upload.ok) throw new Error(`R2への保存に失敗しました（HTTP ${upload.status}）。再試行してください。`);
   await authenticated(`/media/${encodeURIComponent(mediaId)}/complete`, getToken, {
     method: 'POST',
