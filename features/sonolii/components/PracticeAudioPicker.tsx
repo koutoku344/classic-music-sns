@@ -18,6 +18,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
   const [seconds, setSeconds] = useState(0);
   const [recorded, setRecorded] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
+  const [recordPreview, setRecordPreview] = useState('');
   const [past, setPast] = useState<MediaRow[]>([]);
   const [loadingPast, setLoadingPast] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -60,6 +61,13 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
       if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!recorded) { setRecordPreview(''); return; }
+    const url = URL.createObjectURL(recorded);
+    setRecordPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [recorded]);
 
   useEffect(() => {
     let active = true;
@@ -201,7 +209,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
           {recorded && !recording && (
             <div className="space-y-2">
               <p className="text-xs text-ink-500">録音完了（{(recorded.size / 1_000_000).toFixed(1)}MB）</p>
-              <audio controls src={URL.createObjectURL(recorded)} className="w-full" />
+              {recordPreview && <audio controls src={recordPreview} className="w-full" />}
               <button type="button" disabled={uploading || disabled} onClick={() => void saveFile(recorded)}
                 className="px-3 py-2 text-sm rounded-lg bg-teal-600 text-white disabled:opacity-50">
                 {uploading ? '保存中...' : 'この録音をR2に保存して選択'}
