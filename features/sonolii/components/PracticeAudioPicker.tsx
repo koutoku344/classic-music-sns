@@ -8,11 +8,12 @@ type Props = {
   value: string | null;
   onChange: (id: string | null) => void;
   disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 const MAX_SECONDS = 30 * 60;
 
-export default function PracticeAudioPicker({ getToken, value, onChange, disabled = false }: Props) {
+export default function PracticeAudioPicker({ getToken, value, onChange, disabled = false, onBusyChange }: Props) {
   const [mode, setMode] = useState<'record' | 'file' | 'past'>('record');
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -31,7 +32,15 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
   const recordStartedRef = useRef(0);
   const playbackUrlRef = useRef('');
   const getTokenRef = useRef(getToken);
+  const onBusyChangeRef = useRef(onBusyChange);
+  onBusyChangeRef.current = onBusyChange;
   getTokenRef.current = getToken;
+
+  useEffect(() => {
+    onBusyChangeRef.current?.(recording || uploading);
+  }, [recording, uploading]);
+
+  useEffect(() => () => onBusyChangeRef.current?.(false), []);
 
   function endCapture() {
     if (timerRef.current) clearInterval(timerRef.current);
