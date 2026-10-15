@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, Upload, Library, StopCircle } from 'lucide-react';
+import { Mic, Upload, Library, StopCircle, RotateCcw, X } from 'lucide-react';
 import { audioReadUrl, listPastAudio, uploadAudio } from '../lib/mediaApi';
 import type { MediaRow, TokenGetter } from '../lib/mediaApi';
 
@@ -20,6 +20,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
   const [recorded, setRecorded] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [recordPreview, setRecordPreview] = useState('');
+  const [recordedSeconds, setRecordedSeconds] = useState(0);
   const [past, setPast] = useState<MediaRow[]>([]);
   const [loadingPast, setLoadingPast] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -96,9 +97,17 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
     return () => { active = false; };
   }, [value]);
 
+  function clearRecording() {
+    setRecorded(null);
+    setRecordedSeconds(0);
+    setSeconds(0);
+    setError('');
+  }
+
   async function startRecording() {
     setError('');
     setRecorded(null);
+    setRecordedSeconds(0);
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setError('このブラウザでは録音できません。Chrome等の対応ブラウザでお試しください。');
       return;
@@ -115,6 +124,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
         if (e.data.size > 0) recordedParts.current.push(e.data);
       };
       recorder.onstop = () => {
+        setRecordedSeconds(Math.max(1, Math.round((Date.now() - recordStartedRef.current) / 1000)));
         endCapture();
         setRecording(false);
         const mime = recorder.mimeType.split(';')[0];
@@ -211,18 +221,34 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
               <span className="text-sm font-mono text-red-700">● {minutes}</span>
               <button type="button" onClick={stop} className="text-sm text-red-700 flex items-center gap-1"><StopCircle size={16}/>停止</button>
             </div>
-          ) : (
+          ) : !recorded && (
             <button type="button" onClick={() => void startRecording()} disabled={disabled || uploading}
               className="px-3 py-2 rounded-lg bg-teal-600 text-white text-sm disabled:opacity-50">録音を開始</button>
           )}
           {recorded && !recording && (
-            <div className="space-y-2">
-              <p className="text-xs text-ink-500">録音完了（{(recorded.size / 1_000_000).toFixed(1)}MB）</p>
-              {recordPreview && <audio controls src={recordPreview} className="w-full" />}
-              <button type="button" disabled={uploading || disabled} onClick={() => void saveFile(recorded)}
-                className="px-3 py-2 text-sm rounded-lg bg-teal-600 text-white disabled:opacity-50">
-                {uploading ? '保存中...' : 'この録音をR2に保存して選択'}
-              </button>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-ink-700">録音完了・プレビュー</p>
+              <p className="text-xs text-ink-500">
+                録音時間 {Math.floor(recordedSeconds / 60)}:{String(recordedSeconds % 60).padStart(2, '0')}
+                {' ・ '}{(recorded.size / 1_000_000).toFixed(1)}MB
+              </p>
+              {recordPreview && <audio controls preload="metadata" src={recordPreview} className="w-full" />}
+              <p className="text-xs text-ink-500">WebM形式では、Chromeの標準プレイヤーが再生時間を0:00と表示する場合があります。上記の録音時間が実測値です。</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={uploading || disabled}
+                  onClick={() => void startRecording()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-ink-200 text-sm disabled:opacity-50">
+                  <RotateCcw size={16} /> 録り直す
+                </button>
+                <button type="button" disabled={uploading || disabled} onClick={clearRecording}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-ink-200 text-sm disabled:opacity-50">
+                  <X size={16} /> クリア
+                </button>
+                <button type="button" disabled={uploading || disabled} onClick={() => void saveFile(recorded)}
+                  className="px-3 py-2 text-sm rounded-lg bg-teal-600 text-white disabled:opacity-50">
+                  {uploading ? '保存中...' : 'この音声を保存して選択'}
+                </button>
+              </div>
             </div>
           )}
         </div>
