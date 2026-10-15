@@ -12,6 +12,7 @@ export type PracticeRow = {
   piece_title: string;
   duration_minutes: number;
   comment: string;
+  audio_media_id: string | null;
   created_at: string;
   updated_at: string;
 };
