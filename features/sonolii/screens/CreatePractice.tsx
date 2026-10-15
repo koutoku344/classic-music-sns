@@ -27,6 +27,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [past, setPast] = useState<SelectablePiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -93,7 +94,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
   }, [isLoaded, isSignedIn, getToken, editId]);
 
   async function save() {
-    if (!piece || !isSignedIn || saving || loading) {
+    if (!piece || !isSignedIn || saving || loading || audioBusy) {
       return;
     }
     if (
@@ -177,10 +178,11 @@ export default function CreatePractice({ navigate, editId }: Props) {
             getToken={getToken}
             value={audioMediaId}
             onChange={setAudioMediaId}
+            onBusyChange={setAudioBusy}
             disabled={saving || loading}
           />
         )}
-        <button onClick={() => void save()} disabled={loading || saving || !piece || !isSignedIn}
+        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !piece || !isSignedIn}
           className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-40">
           {saving ? '保存中...' : editId ? '変更を保存' : '記録する'}
         </button>
