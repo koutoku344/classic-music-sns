@@ -9,6 +9,7 @@ interface Env extends MediaEnv {
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:3000",
   "https://sonolii-web.g57cydy6ks.workers.dev",
 ];
