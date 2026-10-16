@@ -1460,3 +1460,11 @@ Service成長時は、
 - 通常削除したMediaは30日間保持。使用容量を即時には解放せず、完全削除または定期削除によるR2物理削除成功後に解放する。参照中のMediaは削除拒否。
 - Private Bucket、Owner認可、短寿命Read/Write署名URL、必要なOriginのみCORS許可、秘密鍵の非公開を必須とする。
 - 実運用前に、容量上限・失敗時の再送・ログ機密情報・期限切れpending回収・R2 Objectの削除/復元・利用量を確認する。
+
+## STEP8実装状況と運用確認（2026-10-16）
+
+本書のPremium 20GB、Free音声12か月保持、環境分離、監視等は将来の設計目標を含む。STEP8実装で確認済みなのは、Free 3GBのQuota、音声200MB・画像10MBの上限、Private R2、所有者単位の署名URL、ゴミ箱30日、ブラウザ録音30分、Cronによる期限到来データの削除処理コードである。
+
+CronのScheduler登録は確認済みだが、実際の自動実行による `pending → failed` は未確認。翌日以降、Cloudflare ObservabilityとNeonの両方で確認する。詳細な確認手順・テスト実績・未対応事項は [STEP8検証・運用記録](step8-media-verification.md) を参照する。
+
+**リリース前の見直し項目：** R2 Expiration/TTL（現時点Forever）、認証負荷・URL有効期限到来時のBackend側再発行、R2 Standardの容量課金・Class A/Bオペレーションを含むコスト再計算、Cron失敗検知、R2とNeonの削除整合性、実デバイス・別アカウントでの検証。
