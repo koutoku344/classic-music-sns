@@ -69,6 +69,9 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     if (next === "createPractice" && targetId) {
       href = `/practice/${targetId}/edit`;
     }
+    if (next === "createPractice" && params?.audioMediaId && !targetId) {
+      href = `/practice/new?audioMediaId=${encodeURIComponent(params.audioMediaId)}`;
+    }
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
     if (next === "userProfile") href = `/users/${targetId}`;
