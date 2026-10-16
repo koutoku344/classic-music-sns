@@ -7,6 +7,7 @@ import {
   toSelectablePiece, todayLocal,
 } from '../lib/practiceApi';
 import PiecePicker from '../components/PiecePicker';
+import PracticeAudioPicker from '../components/PracticeAudioPicker';
 import { ArrowLeft, Clock } from 'lucide-react';
 
 type Props = {
@@ -20,12 +21,25 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [piece, setPiece] = useState<SelectablePiece | null>(null);
   const [minutes, setMinutes] = useState(30);
   const [comment, setComment] = useState('');
+  const [audioMediaId, setAudioMediaId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<SelectablePiece[]>([]);
   const [owned, setOwned] = useState<SelectablePiece[]>([]);
   const [past, setPast] = useState<SelectablePiece[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(false);
   const [error, setError] = useState('');
+  
+  // A recording saved from /record is passed as a media ID, not a temporary Blob.
+  // The backend still verifies ownership and readiness when saving the practice.
+  useEffect(() => {
+    if (editId) return;
+    const id = new URLSearchParams(window.location.search).get('audioMediaId');
+    if (id && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)) {
+      setAudioMediaId(id);
+    }
+  }, [editId]);
+
 
   useEffect(() => {
     if (!isLoaded) {
@@ -74,6 +88,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
           setDate(data.practice.practice_date);
           setMinutes(data.practice.duration_minutes);
           setComment(data.practice.comment);
+          setAudioMediaId(data.practice.audio_media_id ?? null);
           setPiece(toSelectablePiece(data.practice));
         }
       } catch (e) {
@@ -90,7 +105,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
   }, [isLoaded, isSignedIn, getToken, editId]);
 
   async function save() {
-    if (!piece || !isSignedIn || saving || loading) {
+    if (!piece || !isSignedIn || saving || loading || audioBusy) {
       return;
     }
     if (
@@ -116,6 +131,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
             ...reference,
             durationMinutes: minutes,
             comment,
+            audioMediaId,
           }),
         });
       const data = await res.json() as { practice: PracticeRow };
@@ -168,8 +184,16 @@ export default function CreatePractice({ navigate, editId }: Props) {
             onChange={e => setComment(e.target.value)} placeholder="練習内容や気づきを記録"
             className="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-xl text-sm" />
         </div>
-        <p className="text-xs text-ink-500">録音・ファイルアップロードはSTEP8で対応します。</p>
-        <button onClick={() => void save()} disabled={loading || saving || !piece || !isSignedIn}
+        {isSignedIn && (
+          <PracticeAudioPicker
+            getToken={getToken}
+            value={audioMediaId}
+            onChange={setAudioMediaId}
+            onBusyChange={setAudioBusy}
+            disabled={saving || loading}
+          />
+        )}
+        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !piece || !isSignedIn}
           className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-40">
           {saving ? '保存中...' : editId ? '変更を保存' : '記録する'}
         </button>

@@ -66,7 +66,7 @@ My Page
 | S15 | User Profile        | 他UserのProfile               |
 | S16 | My Page             | 自分の情報・活動管理                  |
 | S17 | Repertoire          | レパートリー管理                    |
-| S18 | Performance History | 演奏履歴                        |
+| S18 | Media Management    | 保存済み音声・画像の管理           |
 | S19 | Subscription        | Premium管理                   |
 
 ※Comment作成専用ページは設けず、Post Detail上でCommentを作成する。
@@ -573,7 +573,6 @@ Realtime通信はMVP必須としない。
 * Bio
 * Follow
 * Posts
-* 公開Performance
 * Repertoire
 * Recruitment
 
@@ -594,7 +593,7 @@ Recruitment選択でRecruitment Detailへ遷移する。
 * Profile / Profile編集
 * 自分のPosts
 * Repertoire
-* Performance History
+* Media管理
 * Following / Followers
 * Storage使用量
 * 最近削除したMedia
@@ -630,21 +629,18 @@ Piece Masterに存在しない場合は新規Piece登録を可能とする。
 
 ---
 
-## S18 Performance History
+## S18 Media Management
 
-完成した演奏や演奏履歴を管理する。
+本人の保存済み音声・画像を管理する。独立した演奏履歴一覧は設けない。
 
 主要要素：
 
-* Piece
-* Composer
-* 演奏日
-* Audio
-* 公開状態
+* 保存済み音声・画像の一覧
+* ストレージ使用量、容量上限
+* 音声再生、参照先の確認
+* 通常削除、最近削除したMedia、復元、完全削除
 
-同一Pieceの複数Performanceを時系列で確認可能とする。
-
-Practiceは日々の練習記録、Performance Historyは演奏成果・履歴として役割を分離する。
+練習記録の削除とMediaの削除は独立した操作とする。
 
 ---
 
@@ -780,3 +776,15 @@ PCでは左Navigationに主要機能を一覧表示する構成を検討する�
 * Audio Playerを投稿一覧から直接操作可能とする
 * Empty Stateでは次に行う操作を明示する
 * 色だけで状態を表現しない
+
+---
+
+## STEP8画面仕様（確定）
+- 独立したPerformance History画面・My Pageの演奏履歴項目を廃止する。古いS18記述は廃止対象。
+- Create Practice: 音声添付は任意・最大1件。「録音」「ファイル選択」「過去の音声」を同一選択欄に表示する。「録音」は30分で停止し、停止・試聴・録り直し・確定が可能。録音形式は対応ブラウザに合わせる。
+- 「ファイル選択」は音声200MB、メディア管理の画像は10MBまで。上限、ファイル形式、アップロード中・成功・失敗を表示する。自動変換しない。
+- 「過去の音声」は本人の保存済み音声を最近順で表示し、曲を選択済みなら同一曲を優先する。再利用は既存Media ID参照（アップロード不要）。
+- Practice Detail: 添付音声の再生・関連解除・変更。音声を解除または練習記録を削除しても保存済みMediaは残ると説明する。
+- Media管理: 保存済み一覧、音声/画像の区分、使用量（Active/Recently Deleted/予約中）、通常削除、「最近削除したメディア」から復元・完全削除。物理削除成功まで容量は減らないと明示する。参照中Mediaの削除は拒否し、練習記録から外す導線を案内する。
+- My Page: 固定値の容量表示を廃止し、`/media/usage`の実データを表示する。ダウンロードボタンはSTEP8では作らない。
+- 録音・ファイル選択・過去の音声を選ぶUIはSTEP8で作るが、SNS投稿への紐づけはSTEP9で作る。

@@ -3,6 +3,8 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
 import { me, posts, recruitments } from '../data';
 import { getAllPractices } from '../lib/practiceApi';
+import { getMediaUsage, formatMediaBytes } from '../lib/mediaApi';
+import type { MediaUsage } from '../lib/mediaApi';
 import type { PracticeRow } from '../lib/practiceApi';
 import { API_BASE, toPiece } from '../lib/repertoireApi';
 import type { RepertoireResponse } from '../lib/repertoireApi';
@@ -18,7 +20,6 @@ import {
   Clock,
   Crown,
   HardDrive,
-  Shield,
 } from 'lucide-react';
 
 type ProfileResponse = {
@@ -63,6 +64,8 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [repertoireLoading, setRepertoireLoading] = useState(true);
   const [myPracticeRecords, setMyPracticeRecords] = useState<PracticeRow[]>([]);
   const [practiceError, setPracticeError] = useState('');
+  const [mediaUsage, setMediaUsage] = useState<MediaUsage | null>(null);
+  const [mediaUsageError, setMediaUsageError] = useState('');
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -136,6 +139,23 @@ export default function MyPage({ navigate }: MyPageProps) {
     return () => {
       active = false;
     };
+  }, [isLoaded, isSignedIn, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setMediaUsage(null);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const value = await getMediaUsage(getToken);
+        if (active) { setMediaUsage(value); setMediaUsageError(''); }
+      } catch {
+        if (active) setMediaUsageError('容量を取得できませんでした。');
+      }
+    })();
+    return () => { active = false; };
   }, [isLoaded, isSignedIn, getToken]);
 
   const myPosts = posts.filter((p) => p.user.id === 'me');
@@ -225,23 +245,41 @@ export default function MyPage({ navigate }: MyPageProps) {
         <ChevronRight size={18} className="text-gold-400 flex-shrink-0" />
       </button>
 
-      {/* Storage info */}
-      <div className="bg-white rounded-2xl border border-ink-100 p-4 mb-5">
+      {/* Storage usage from authenticated Backend API */}
+      <button
+        type="button"
+        onClick={() => navigate('mediaManager')}
+        className="block text-left w-full bg-white rounded-2xl border border-ink-100 p-4 mb-5 hover:border-teal-300"
+      >
         <div className="flex items-center gap-2 mb-3">
           <HardDrive size={16} className="text-ink-400" />
           <p className="text-sm font-medium text-ink-700">ストレージ</p>
           <span className="text-xs text-ink-400 ml-auto">Free プラン</span>
+          <ChevronRight size={16} className="text-ink-400" />
         </div>
-        <div className="h-2 bg-ink-100 rounded-full overflow-hidden mb-2">
-          <div className="h-full bg-teal-500 rounded-full" style={{ width: '35%' }} />
-        </div>
-        <div className="flex items-center justify-between text-xs text-ink-400">
-          <span>1.05 GB / 3 GB</span>
-          <span className="flex items-center gap-1">
-            <Shield size={12} /> 音声は12か月保存
-          </span>
-        </div>
-      </div>
+        {mediaUsage ? (
+          <>
+            <div className="h-2 bg-ink-100 rounded-full overflow-hidden mb-2">
+              <div className="h-full bg-teal-500 rounded-full"
+                style={{ width: `${Math.min(100, 100 * (
+                  mediaUsage.active_bytes + mediaUsage.deleted_bytes + mediaUsage.pending_bytes
+                ) / mediaUsage.limit_bytes)}%` }} />
+            </div>
+            <p className="text-xs text-ink-500">
+              {formatMediaBytes(
+                mediaUsage.active_bytes + mediaUsage.deleted_bytes + mediaUsage.pending_bytes
+              )} / {formatMediaBytes(mediaUsage.limit_bytes)}
+            </p>
+            <p className="text-xs text-ink-400 mt-1">
+              ゴミ箱・アップロード予約も使用量に含まれます。管理するにはこちらを選択
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-ink-500">
+            {mediaUsageError || (isSignedIn ? '使用量を取得しています...' : 'ログイン後に使用量を確認できます')}
+          </p>
+        )}
+      </button>
 
       <div className="bg-white rounded-2xl border border-ink-100 p-5 mb-5">
         <div className="flex items-center justify-between mb-3">

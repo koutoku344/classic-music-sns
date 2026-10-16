@@ -3,6 +3,15 @@
   "name": "sonolii-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-03",
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "sonolii-media"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "observability": {
     "enabled": true
   }

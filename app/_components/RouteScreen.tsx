@@ -14,6 +14,7 @@ import Practice from "@/features/sonolii/screens/Practice";
 import PracticeDetail from "@/features/sonolii/screens/PracticeDetail";
 import CreatePractice from "@/features/sonolii/screens/CreatePractice";
 import Recording from "@/features/sonolii/screens/Recording";
+import MediaManager from "@/features/sonolii/screens/MediaManager";
 import RecruitmentDetail from "@/features/sonolii/screens/RecruitmentDetail";
 import CreateRecruitment from "@/features/sonolii/screens/CreateRecruitment";
 import Search from "@/features/sonolii/screens/Search";
@@ -38,6 +39,7 @@ const routeMap: Partial<Record<ScreenName, string>> = {
   practice: "/practice",
   createPractice: "/practice/new",
   recording: "/record",
+  mediaManager: "/settings/media",
   createRecruitment: "/recruitments/new",
   search: "/search",
   messages: "/messages",
@@ -69,6 +71,9 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     if (next === "createPractice" && targetId) {
       href = `/practice/${targetId}/edit`;
     }
+    if (next === "createPractice" && params?.audioMediaId && !targetId) {
+      href = `/practice/new?audioMediaId=${encodeURIComponent(params.audioMediaId)}`;
+    }
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
     if (next === "userProfile") href = `/users/${targetId}`;
@@ -91,6 +96,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     case "practiceDetail": content = <PracticeDetail recordId={id} navigate={navigate} />; break;
     case "createPractice": content = <CreatePractice editId={id || undefined} navigate={navigate} />; break;
     case "recording": content = <Recording navigate={navigate} />; break;
+    case "mediaManager": content = <MediaManager navigate={navigate} />; break;
     case "recruitmentDetail": content = <RecruitmentDetail recruitmentId={id} navigate={navigate} />; break;
     case "createRecruitment": content = <CreateRecruitment navigate={navigate} />; break;
     case "search": content = <Search navigate={navigate} />; break;

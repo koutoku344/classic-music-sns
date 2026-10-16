@@ -19,7 +19,6 @@ Composer
    └──< Piece（共通マスタ）
           ├──< Repertoire >── User
           ├──< PracticeRecord >── User
-          ├──< Performance ── User
           └──< Recruitment
 
 User
@@ -45,7 +44,7 @@ User
  └── Subscription
 ```
 
-`Composer`、`Piece`、`Performance`、`Post`を独立Entityとする。
+`Composer`、`Piece`、`Post`、`Media`を独立Entityとする。`Performance`は採用しない。
 
 ---
 
@@ -58,7 +57,6 @@ User
 | Piece              | 楽曲Master                |
 | UserPiece          | ユーザー固有の手動登録曲（本人のみ利用） |
 | Repertoire         | ユーザーのレパートリー             |
-| Performance        | 演奏履歴                    |
 | PracticeRecord     | 1件1曲の練習記録（同日複数件可）    |
 | Post               | SNS投稿                   |
 | Media              | 音声・画像Metadata           |
@@ -197,18 +195,9 @@ Piece DBを段階的に拡充
 
 ---
 
-## 4.5 Performance
+## 4.5 Mediaの採用方針
 
-| 項目 | 内容 |
-| --- | --- |
-| id | Performance ID |
-| user_id | User |
-| piece_id | Piece（将来、user_piece_id対応をSTEP8で検討） |
-| performed_at | 演奏日時 |
-| visibility | 公開範囲 |
-| created_at | 登録日時 |
-
-同一Pieceについて複数回のPerformanceを登録可能とする。
+独立したPerformance Entityは作成しない。音声・画像をMediaとして扱い、練習記録や将来の投稿から参照する。詳細は文末のSTEP8確定モデルを参照。
 
 ---
 
@@ -512,3 +501,20 @@ Pieceについては他データから参照されるため、重複・修正時
 * 認証はClerk、決済はStripeへ委譲する
 * Foreign Key / Unique Constraintで整合性を維持する
 * 将来機能追加時も既存Entityの責務を可能な限り維持する
+
+---
+
+## STEP8確定モデル（Migration 009）
+- `performances` は実装しない。既存の概念図・古いPerformance節は旧構想であり、STEP8以降の採用モデルではない。
+- `media`: `id`, `user_id`, `object_key`（UNIQUE）, `media_type`（audio/image）, `mime_type`, `size_bytes`, `duration_seconds`, `upload_status`（pending/ready/failed）, `deleted_at`, `purge_at`, `created_at`, `updated_at`。実体はprivateなR2 Object。
+- `practice_records.audio_media_id` はnullableで、1レコード1音声をDBカラム数で表現する。複合FK `(user_id, audio_media_id) -> media(user_id,id)` によって別所有者のMedia参照を禁止する。Backendでもaudio・ready・未削除を検証する。
+- レパートリーやPracticeの曲の参照方法（`piece_id` XOR `user_piece_id`）は変更しない。
+- メディアを再利用する場合、同一Media IDを複数の練習記録で参照できる。参照中のMediaは削除前に参照解除を要求する。STEP9で投稿を参照元に追加する場合も同様に扱う。
+- `pending` はアップロード予約状態。完了通知時にR2 HEAD結果からサイズ・存在・保存情報を検証し`ready`に変更する。`failed`と未完了オブジェクトは定期回収する。
+- 使用容量は有効Mediaと論理削除Mediaの実サイズ、およびpendingの予約サイズで算出する。再利用参照によって同じMediaを重複加算しない。
+- 物理削除はR2削除の成功を確認してからメタデータを整理する。30日間の論理削除状態は`deleted_at` / `purge_at`で管理する。
+- 移行SQLは`db/migrations/009_create_media_and_practice_audio.sql`。既存Practiceデータに影響しないnullable列追加で、R2バケットやSecretsを作成しない。
+
+### STEP8追加マイグレーション010
+
+`db/migrations/010_reserve_media_upload.sql` は、ユーザー行を `FOR UPDATE` でロックしてストレージ上限（予約済みpendingを含む）と1分あたり10件のアップロード許可を原子的に判定するDB関数を作成する。009適用後、メディアアップロードAPIをデプロイする前に010を適用する。010は新たなメディアテーブルを作成せず既存データを削除しない。現段階のAPIはFreeプラン相当の3GB制限で実装し、Premium契約と20GB制限の実運用連動は課金機能実装時に必須対応とする。

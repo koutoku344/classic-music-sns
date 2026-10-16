@@ -1,13 +1,15 @@
 import { verifyToken } from "@clerk/backend";
 import { neon } from "@neondatabase/serverless";
+import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
 
-interface Env {
+interface Env extends MediaEnv {
   DATABASE_URL: string;
   CLERK_JWT_KEY: string;
 }
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:3000",
   "https://sonolii-web.g57cydy6ks.workers.dev",
 ];
@@ -209,12 +211,13 @@ type PracticeInput = {
   userPieceId: string | null;
   durationMinutes: number;
   comment: string;
+  audioMediaId: string | null | undefined;
 };
 
 function parsePractice(value: unknown): PracticeInput | null {
   const v = recordObject(value);
   if (!v || Object.keys(v).some(k => ![
-    "practiceDate", "pieceId", "userPieceId", "durationMinutes", "comment"
+    "practiceDate", "pieceId", "userPieceId", "durationMinutes", "comment", "audioMediaId"
   ].includes(k))) return null;
   const pieceId = v.pieceId ?? null;
   const userPieceId = v.userPieceId ?? null;
@@ -229,6 +232,9 @@ function parsePractice(value: unknown): PracticeInput | null {
   }
   if (typeof v.durationMinutes !== "number" ||
     !Number.isInteger(v.durationMinutes) || v.durationMinutes < 1 || v.durationMinutes > 1440) return null;
+  const audioMediaId = v.audioMediaId;
+  if (audioMediaId !== undefined && audioMediaId !== null &&
+    (typeof audioMediaId !== "string" || !uuidPattern.test(audioMediaId))) return null;
   const comment = v.comment ?? "";
   if (typeof comment !== "string" || comment.length > 2000) {
     return null;
@@ -238,7 +244,8 @@ function parsePractice(value: unknown): PracticeInput | null {
     pieceId: pieceId as string | null,
     userPieceId: userPieceId as string | null,
     durationMinutes: v.durationMinutes,
-    comment
+    comment,
+    audioMediaId: audioMediaId as string | null | undefined
   };
 }
 
@@ -315,7 +322,8 @@ export default {
     if (!(mineGet || minePatch || sync || check || publicGet ||
       catalogGet || repList || repCreate || repUpdate || repDelete ||
       userPiecesList || userPiecesCreate || userPiecesPatch ||
-      practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete)) {
+      practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
+      isMediaRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -448,6 +456,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isMediaRoute(url.pathname)) {
+        return await handleMedia(request, env, sql, userId, headers);
+      }
 
       // Read with the same projection for GET, POST and PATCH.
       const getRepertoire = async (id: string) => {
@@ -639,7 +651,8 @@ export default {
         const rows = await sql`
           SELECT r.id, r.piece_id, r.user_piece_id,
             to_char(r.practice_date, 'YYYY-MM-DD') AS practice_date,
-            r.duration_minutes, r.comment, r.created_at, r.updated_at,
+            r.duration_minutes, r.comment, r.audio_media_id,
+            r.created_at, r.updated_at,
             COALESCE(c.name, up.composer) AS composer_name,
             COALESCE(p.title, up.title) AS piece_title
           FROM public.practice_records r
@@ -751,13 +764,28 @@ export default {
             return reply({ error: "not_found" }, 404, headers);
           }
         }
+        if (input.audioMediaId) {
+          const foundMedia = await sql`
+            SELECT id FROM public.media
+            WHERE id = ${input.audioMediaId}::uuid
+              AND user_id = ${userId}::uuid
+              AND media_type = 'audio'
+              AND upload_status = 'ready'
+              AND deleted_at IS NULL
+            LIMIT 1
+          `;
+          if (!foundMedia.length) {
+            return reply({ error: "audio_media_not_found" }, 404, headers);
+          }
+        }
         if (practicesCreate) {
           const rows = await sql`
             INSERT INTO public.practice_records
-              (user_id, piece_id, user_piece_id, practice_date, duration_minutes, comment)
+              (user_id, piece_id, user_piece_id, practice_date, duration_minutes, comment, audio_media_id)
             VALUES
               (${userId}::uuid, ${input.pieceId}::uuid, ${input.userPieceId}::uuid,
-               ${input.practiceDate}::date, ${input.durationMinutes}, ${input.comment})
+               ${input.practiceDate}::date, ${input.durationMinutes}, ${input.comment},
+               ${input.audioMediaId ?? null}::uuid)
             RETURNING id
           `;
           return reply({ practice: await getPractice(rows[0].id as string) }, 201, headers);
@@ -770,6 +798,8 @@ export default {
               practice_date = ${input.practiceDate}::date,
               duration_minutes = ${input.durationMinutes},
               comment = ${input.comment},
+              audio_media_id = CASE WHEN ${input.audioMediaId !== undefined}
+                THEN ${input.audioMediaId ?? null}::uuid ELSE audio_media_id END,
               updated_at = now()
           WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
           RETURNING id
@@ -869,5 +899,9 @@ export default {
     }
 
     return reply({ error: "not_found" }, 404, headers);
+  },
+
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    await cleanupMedia(env, neon(env.DATABASE_URL));
   },
 };

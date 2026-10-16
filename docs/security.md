@@ -72,7 +72,7 @@ AuthorizationはBackend APIで実施する。Path ParameterやRequest Bodyの us
 | UserPiece参照・作成・編集 | Ownerのみ（削除APIはSTEP7では用意しない） |
 | Practice参照・作成・更新・削除 | Ownerのみ |
 | Performance更新・削除 | Ownerのみ |
-| 非公開Performance閲覧 | Ownerのみ |
+| 練習記録・未投稿Media閲覧 | Ownerのみ |
 | Post更新・削除 | 投稿者のみ |
 | Comment削除 | 原則Comment投稿者のみ |
 | Media削除 | Ownerのみ |
@@ -243,7 +243,7 @@ CSPの許可先はClerk、Stripe、R2等の実際の通信先を確認して詳�
 
 必要以上の個人情報を収集しない。RecruitmentやProfileで住所、電話番号、個人Email等を公開必須項目にしない。Conversation / Messageは公開しない。
 
-Account削除時のUser Profile、Post、Comment、Practice、Performance、Media、Message、Recruitment / Application、Subscriptionの扱いは実装前に詳細化し、法令・決済上必要な保持とUser要求による削除を区別する。
+Account削除時のUser Profile、Post、Comment、Practice、Media、Message、Recruitment / Application、Subscriptionの扱いは実装前に詳細化し、法令・決済上必要な保持とUser要求による削除を区別する。
 
 ---
 
@@ -400,3 +400,27 @@ ContainmentではCredential失効、Account / Endpoint制限、必要に応じ�
 本システムでは「Frontendから送られてきた情報を信用せず、Backend APIをセキュリティ境界として、認証・認可・入力検証・利用量制御を行う」ことを基本原則とする。
 
 Clerk、Neon、R2、Stripe等のManaged Serviceへ基盤Securityを委譲しつつ、Application固有のAuthorizationとBusiness RuleはBackend APIで一元管理する。
+
+---
+
+## STEP8 Media認可・検証（確定）
+- R2バケットはprivate。ClientにR2アクセスキー等を渡さない。PUT/GETの署名URLは対象Key・Method・Content-Type等を限定し、短寿命。CORSは許可したFrontend Originのみに設定する。
+- Media APIの所有者は認証JWTから解決し、`media.user_id`と照合する。他人のMediaを再生・参照・復元・削除・完全削除できない。Practiceの`audio_media_id`はOwner複合FKとBackendのtype/ready/deleted認可を両方使う。
+- Profileの`visibility`はpublic / followers / private。privateは本人以外にプロフィール詳細・投稿を非表示。followersの閲覧認可が実装されるまでは本人のみとする。Practiceと投稿していないMediaはプロフィールがpublicでも本人限定。
+- POST Upload許可時にはMIME許可リスト、申告Size上限（音声200,000,000 bytes／画像10,000,000 bytes）、予約容量を含むOwnerのQuota、Rate Limit、二重リクエストを検証する。並行リクエストによる容量突破を防ぐためDB側の排他・予約整合性を設計実装する。
+- 単一PUTはR2へ直接送信する。Backend WorkerにMedia本文を中継しない。アップロード完了時にHEADで存在・サイズ・保存属性を検証する。クライアントのMIME申告だけを信用せず、許可形式と内容の整合性はMVPで可能な範囲で確認する。
+- 期限切れpendingと未参照R2 Objectは回収対象。署名URLを発行した後の遅延PUTを含め、予約解除とObject清掃の競合・再試行・冪等性を考慮する。アカウント退会時のR2削除も別途実装対象。
+- 参照中Mediaを論理削除・物理削除しない。削除前に練習記録・将来の投稿の参照解除を要求する。物理削除成功を確認してから容量を解放する。通常削除は30日間保持・復元可能。
+- 発行済みRead URLは有効期限までは利用可能なため、公開設定変更時の即時失効は保証しない。STEP8のRead URLは本人専用、投稿向け公開閲覧はSTEP9で認可仕様を追加する。
+- ファイル内容、Authorizationヘッダー、Secret、署名URL全体はログに記録しない。
+
+---
+
+## 今後の要件：R2認証情報の有効期限・自動更新（STEP8後）
+
+- 初期リリース段階では、R2 APIトークンのExpiration（TTL）を `Forever` に設定し、`sonolii-media` バケットだけに権限を限定する。
+- 将来的には無期限トークン運用を見直し、TTL付き認証情報へ移行できる構成とする。
+- Backend APIが使用するR2認証情報が失効した際に、サービスを復旧できる認証情報の更新・再取得・安全な切替方式を設計する。必要であれば期限前自動ローテーションを実装する。
+- **注意**：R2 APIトークンの失効時、Backendが現在の失効トークンだけで新しいトークンを発行できると想定しない。Cloudflareの認証方式・一時認証情報・更新権限・Bootstrap Credential管理を調査し、実現可能な方式を選定する。
+- 401/403等の認証失敗を検知した際は、原因を判別し、無限再試行や不必要な権限昇格を避ける。再発行・切替・監査ログ・通知・障害復旧の設計を含める。
+- 当面はWorker Secretsによる安全な保管、手動ローテーション手順、漏えい時の即時失効を優先する。

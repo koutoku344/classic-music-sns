@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { apiFetch } from '../lib/practiceApi';
 import type { PracticeRow } from '../lib/practiceApi';
+import { audioReadUrl } from '../lib/mediaApi';
 import { ArrowLeft, Clock, Music2, Pencil, Trash2 } from 'lucide-react';
 
 type Props = {
@@ -16,6 +17,8 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [audioError, setAudioError] = useState('');
 
   useEffect(() => {
     if (!isLoaded) {
@@ -25,12 +28,22 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
     let active = true;
     setLoading(true);
     setError('');
+    setAudioUrl('');
+    setAudioError('');
     (async () => {
       try {
         const res = await apiFetch(`/practices/${encodeURIComponent(recordId)}`, getToken);
         const data = await res.json() as { practice: PracticeRow };
         if (active) {
           setRecord(data.practice);
+        }
+        if (data.practice.audio_media_id) {
+          try {
+            const signedUrl = await audioReadUrl(data.practice.audio_media_id, getToken);
+            if (active) setAudioUrl(signedUrl);
+          } catch {
+            if (active) setAudioError('音声の再生URLを取得できません。');
+          }
         }
       } catch (e) {
         if (active) {
@@ -86,6 +99,15 @@ export default function PracticeDetail({ recordId, navigate }: Props) {
             </p>
             {record.comment && <p className="text-sm text-ink-600 mt-3 whitespace-pre-wrap">{record.comment}</p>}
           </div>
+          {record.audio_media_id && (
+            <div className="mt-5 space-y-2">
+              <h2 className="text-sm font-medium text-ink-800">録音・音声</h2>
+              {audioError && <p role="alert" className="text-sm text-red-600">{audioError}</p>}
+              {audioUrl ? <audio controls className="w-full" src={audioUrl} /> :
+                !audioError && <p className="text-xs text-ink-500">音声を読み込み中...</p>}
+              <p className="text-xs text-ink-500">録音は練習記録を削除してもメディアとして保存されます。</p>
+            </div>
+          )}
           <div className="flex gap-3 mt-6">
             <button onClick={() => navigate('createPractice', { id: record.id })}
               className="flex-1 flex items-center justify-center gap-2 border border-ink-200 rounded-xl py-3 text-sm font-medium">

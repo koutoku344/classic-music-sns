@@ -502,3 +502,25 @@ R2 Compressed Video
 ```
 
 将来機能を追加しても、Frontend / Backend API / Database / Object Storageの責務を可能な限り維持できる構成とする。
+
+---
+
+## STEP8: Media実装アーキテクチャ
+- MediaはCloudflare R2のPrivate Bucketに保存し、Neonの`media`でOwner/Key/Status/容量を管理する。`performances`は作成しない。
+- FrontendはClerk認証付きでBackendにPUT用Presigned URLを要求し、FileをR2へ直接単一PUT送信する。Backendは予約容量・許可MIME・Sizeを検証する。200MB音声、10MB画像、元ファイルのまま保存し、初期はmultipart/自動変換なし。
+- Upload完了後にFrontendがBackendへ通知する。BackendはR2のHEADでObjectを照合した上でready化する。異常なpendingや孤立Objectは後続の定期ジョブで掃除する。
+- Practiceの音声関連は`practice_records.audio_media_id`（最大1件、null可）からMediaを参照する。投稿への関連付けと公開認可はSTEP9。
+- Browser録音はMediaRecorder（最大30分・利用可能形式判定）を利用。保存済みの音声はMedia IDを再利用する。音声ダウンロードUIは実装しない。
+- `profiles.visibility`はUser単位の閲覧制御。R2へのアクセス権限はJWT Owner判定または将来の投稿閲覧権限に基づいてBackendから短時間URLを発行する。STEP8は本人向けURLのみ。
+- 限度額対策として、R2バケットの容量上限だけに頼らず、User別Quota（Free 3GB／Premium 20GB）とpending予約をDBで管理し、アップロード許可時の同時実行競合を防止する。
+
+### STEP8実装の状況（2026-10-16）
+
+上記は将来の目標を含む全体設計であり、現行の実装とは以下の点が異なる。
+
+- 現在のFrontendはvinext / React、Frontend/Backendを別々のCloudflare Workerとして運用する。
+- R2への転送はBackendの署名URLを取得してからFrontendが直接実行する。参照用URLもBackendが所有者を確認して発行する。
+- 実装済みの保存容量制限はFree 3GBのみ。Premium 20GBのプラン別制御は未実装。
+- Freeプランの「音声12か月保持」は未実装。R2にある通常の音声は期限指定なし、論理削除されたメディアは30日後のCron物理削除対象。
+- Cronの設定・スケジュール・実処理については `backend/wrangler.jsonc` → `backend/src/index.ts` の `scheduled` → `backend/src/media.ts` の `cleanupMedia` の順に参照する。
+- Cronの自動削除結果は確認待ち。最新の確認結果・残課題は [STEP8検証・運用記録](step8-media-verification.md) を参照する。
