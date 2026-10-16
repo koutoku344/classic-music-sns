@@ -2,7 +2,7 @@ export type ScreenName =
   | 'landing' | 'auth' | 'community' | 'postDetail' | 'createPost'
   | 'practice' | 'practiceDetail' | 'createPractice'
   | 'recruitmentDetail' | 'createRecruitment'
-  | 'recording' | 'search' | 'messages' | 'conversation'
+  | 'recording' | 'mediaManager' | 'search' | 'messages' | 'conversation'
   | 'userProfile' | 'myPage' | 'repertoire' | 'performanceHistory' | 'subscription' | 'notifications' | 'settings'
   | 'accountSettings' | 'terms' | 'privacy' | 'help' | 'addRepertoire';
 
