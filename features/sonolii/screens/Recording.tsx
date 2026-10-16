@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { uploadAudio } from '../lib/mediaApi';
+import { withWebmDuration } from '../lib/webmDuration';
 import { ArrowLeft, Mic, Circle, Check, X, RotateCcw, Calendar } from 'lucide-react';
 
 interface RecordingProps {
@@ -134,10 +135,15 @@ export default function Recording({ navigate }: RecordingProps) {
           return;
         }
         const ext = baseMime === 'audio/mp4' ? 'm4a' : 'webm';
-        setAudioFile(new File([blob], `recording-${Date.now()}.${ext}`, {
+        const original = new File([blob], `recording-${Date.now()}.${ext}`, {
           type: baseMime,
-        }));
-        setPhase('recorded');
+        });
+        void (async () => {
+          const repaired = await withWebmDuration(original, duration * 1000);
+          if (!mountedRef.current) return;
+          setAudioFile(repaired);
+          setPhase('recorded');
+        })();
       };
       setAudioFile(null);
       setRecordSec(0);
