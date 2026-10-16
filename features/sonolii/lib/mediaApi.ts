@@ -47,6 +47,9 @@ async function authenticated(
       upload_not_found: 'アップロードしたファイルを確認できません。',
       media_not_available: '音声が見つかりません。',
       unauthorized: '再度ログインしてください。',
+      media_in_use: '練習記録で使用中の音声です。先に練習記録から音声の紐づけを解除してください。',
+      media_not_restorable: 'この音声は復元できません。',
+      delete_first: '先にゴミ箱へ移動してください。',
     };
     throw new Error(message[reason] ?? `音声APIエラー（HTTP ${res.status}${reason ? `: ${reason}` : ''}）`);
   }
@@ -116,4 +119,56 @@ export async function audioReadUrl(id: string, getToken: TokenGetter): Promise<s
   });
   const data = await res.json() as { readUrl: string };
   return data.readUrl;
+}
+
+export type DeletedMediaRow = MediaRow & {
+  deleted_at: string;
+  purge_at: string;
+};
+
+export type MediaUsage = {
+  active_bytes: number;
+  deleted_bytes: number;
+  pending_bytes: number;
+  limit_bytes: number;
+};
+
+export async function listMedia(
+  getToken: TokenGetter,
+  offset = 0,
+  limit = 30,
+): Promise<MediaRow[]> {
+  const res = await authenticated(`/media?limit=${limit}&offset=${offset}`, getToken);
+  const data = await res.json() as { media: MediaRow[] };
+  return data.media;
+}
+
+export async function listDeletedMedia(getToken: TokenGetter): Promise<DeletedMediaRow[]> {
+  const res = await authenticated('/media/deleted', getToken);
+  const data = await res.json() as { media: DeletedMediaRow[] };
+  return data.media;
+}
+
+export async function getMediaUsage(getToken: TokenGetter): Promise<MediaUsage> {
+  const res = await authenticated('/media/usage', getToken);
+  const data = await res.json() as { usage: MediaUsage };
+  return data.usage;
+}
+
+export async function trashMedia(id: string, getToken: TokenGetter): Promise<void> {
+  await authenticated(`/media/${encodeURIComponent(id)}`, getToken, { method: 'DELETE' });
+}
+
+export async function restoreMedia(id: string, getToken: TokenGetter): Promise<void> {
+  await authenticated(`/media/${encodeURIComponent(id)}/restore`, getToken, { method: 'POST' });
+}
+
+export async function permanentlyDeleteMedia(id: string, getToken: TokenGetter): Promise<void> {
+  await authenticated(`/media/${encodeURIComponent(id)}/permanent`, getToken, { method: 'DELETE' });
+}
+
+export function formatMediaBytes(bytes: number): string {
+  return bytes >= 1_000_000_000
+    ? `${(bytes / 1_000_000_000).toFixed(2)} GB`
+    : `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
