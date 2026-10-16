@@ -29,6 +29,17 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [saving, setSaving] = useState(false);
   const [audioBusy, setAudioBusy] = useState(false);
   const [error, setError] = useState('');
+  
+  // A recording saved from /record is passed as a media ID, not a temporary Blob.
+  // The backend still verifies ownership and readiness when saving the practice.
+  useEffect(() => {
+    if (editId) return;
+    const id = new URLSearchParams(window.location.search).get('audioMediaId');
+    if (id && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)) {
+      setAudioMediaId(id);
+    }
+  }, [editId]);
+
 
   useEffect(() => {
     if (!isLoaded) {
