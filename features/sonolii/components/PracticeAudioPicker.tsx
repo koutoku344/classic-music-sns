@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mic, Upload, Library, StopCircle, RotateCcw, X } from 'lucide-react';
 import { audioReadUrl, listPastAudio, uploadAudio } from '../lib/mediaApi';
+import { withWebmDuration } from '../lib/webmDuration';
 import type { MediaRow, TokenGetter } from '../lib/mediaApi';
 
 type Props = {
@@ -135,7 +136,12 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
           setError('録音データが空、または200MBを超えています。');
           return;
         }
-        setRecorded(new File([blob], `recording-${Date.now()}.${ext}`, { type: mime }));
+        const original = new File([blob], `recording-${Date.now()}.${ext}`, { type: mime });
+        const elapsedMs = Math.max(1, Date.now() - recordStartedRef.current);
+        void (async () => {
+          const repaired = await withWebmDuration(original, elapsedMs);
+          setRecorded(repaired);
+        })();
       };
       recorder.onerror = () => {
         setError('録音中にエラーが発生しました。再度お試しください。');
