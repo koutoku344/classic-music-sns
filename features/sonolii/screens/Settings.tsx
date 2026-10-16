@@ -1,5 +1,5 @@
 import type { ScreenName } from '../types';
-import { ArrowLeft, User, FileText, Crown, Shield, HelpCircle, LogOut, ChevronRight } from 'lucide-react';
+import { ArrowLeft, User, FileText, Crown, HardDrive, Shield, HelpCircle, LogOut, ChevronRight } from 'lucide-react';
 
 interface SettingsProps {
   navigate: (s: ScreenName) => void;
@@ -12,6 +12,7 @@ export default function Settings({ navigate }: SettingsProps) {
       items: [
         { icon: User, label: 'アカウント設定', desc: 'プロフィール・メール・パスワード・通知', screen: 'accountSettings' as ScreenName },
         { icon: Crown, label: 'サブスクリプション管理', desc: 'プランの確認・変更', screen: 'subscription' as ScreenName },
+        { icon: HardDrive, label: 'メディア管理', desc: '録音・画像、保存容量とゴミ箱', screen: 'mediaManager' as ScreenName },
       ],
     },
     {
