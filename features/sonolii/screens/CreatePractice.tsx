@@ -158,7 +158,6 @@ export default function CreatePractice({ navigate, editId }: Props) {
       <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">{editId ? '練習記録を編集' : '練習を記録'}</h1>
       <div className="bg-white rounded-2xl border border-ink-100 p-5 sm:p-6 space-y-5">
         {loading && <p className="text-ink-500 text-sm">読み込み中...</p>}
-        {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
         <div>
           <label htmlFor="practice-date"
             className="block text-sm font-medium text-ink-700 mb-2">練習日</label>
@@ -219,6 +218,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
             )}
           </section>
         )}
+        {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
         <button onClick={() => void save()} disabled={loading || saving || audioBusy || !isSignedIn}
           className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-40">
           {saving ? '保存中...' : editId ? '変更を保存' : '記録する'}
