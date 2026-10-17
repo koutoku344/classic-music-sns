@@ -19,8 +19,12 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const fromMyPage = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('from') === 'my-page';
+  // SSR and the first browser render must agree. Read the URL after hydration.
+  const [fromMyPage, setFromMyPage] = useState(false);
+
+  useEffect(() => {
+    setFromMyPage(new URLSearchParams(window.location.search).get('from') === 'my-page');
+  }, [postId]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -73,7 +77,7 @@ export default function PostDetail({ postId, navigate }: Props) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => navigate('community')}
+      <button onClick={() => navigate(fromMyPage ? 'myPage' : 'community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
         <ArrowLeft size={18}/> {fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
