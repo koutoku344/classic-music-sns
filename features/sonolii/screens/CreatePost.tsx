@@ -129,10 +129,14 @@ export default function CreatePost({ navigate }: Props) {
         <div className="bg-white rounded-2xl border border-ink-100 p-6 space-y-3">
           <CheckCircle className="text-teal-600" size={28} />
           <h2 className="text-lg font-bold text-ink-900">投稿を保存しました</h2>
-          <p className="text-sm text-ink-600">投稿はNeonに保存されています。投稿一覧・詳細画面への反映はSTEP9-6で行います。</p>
+          <p className="text-sm text-ink-600">投稿は保存され、公開範囲に応じてコミュニティに表示されます。</p>
           <p className="text-xs text-ink-400 break-all">投稿ID：{createdId}</p>
-          <button className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
-            onClick={() => navigate('community')}>戻る</button>
+          <div className="flex flex-wrap gap-2">
+            <button className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
+              onClick={() => navigate('postDetail', { id: createdId })}>投稿を見る</button>
+            <button className="px-4 py-2 rounded-lg border border-ink-200 text-ink-700 text-sm"
+              onClick={() => navigate('community')}>コミュニティへ</button>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-ink-100 p-5 sm:p-6 space-y-5">
