@@ -239,7 +239,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
                 録音時間 {Math.floor(recordedSeconds / 60)}:{String(recordedSeconds % 60).padStart(2, '0')}
                 {' ・ '}{(recorded.size / 1_000_000).toFixed(1)}MB
               </p>
-              {recordPreview && <audio controls preload="metadata" src={recordPreview} className="w-full" />}
+              {recordPreview && <audio controls controlsList="nodownload" preload="metadata" src={recordPreview} className="w-full" />}
               <p className="text-xs text-ink-500">WebM形式では、Chromeの標準プレイヤーが再生時間を0:00と表示する場合があります。上記の録音時間が実測値です。</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={uploading || disabled}
@@ -285,7 +285,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {value && <div className="space-y-2">
         <p className="text-xs text-teal-700">音声を選択中（{contextLabel}の保存で紐づけ確定）</p>
-        {preview && <audio controls src={preview} className="w-full" />}
+        {preview && <audio controls controlsList="nodownload" src={preview} className="w-full" />}
       </div>}
     </section>
   );
