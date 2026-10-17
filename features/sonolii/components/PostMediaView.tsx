@@ -52,6 +52,7 @@ function MediaItem({
       <div className="space-y-1">
         <audio
           controls
+          controlsList="nodownload"
           preload="metadata"
           src={url}
           className="w-full"
