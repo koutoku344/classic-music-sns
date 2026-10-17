@@ -263,8 +263,20 @@ export async function handleMedia(
   const key = media.object_key as string;
 
   if (action === "complete" && method === "POST") {
-    const input = await readInput(request);
-    if (!input || Object.keys(input).some(k => k !== "durationSeconds")) {
+    // STEP8 image clients sent an empty completion body: keep that compatible.
+    const rawBody = await request.text();
+    if (rawBody.length > 8192) return response({ error: "invalid_duration" }, 400, headers);
+    let input: Record<string, unknown>;
+    try {
+      const decoded: unknown = rawBody ? JSON.parse(rawBody) : {};
+      if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+        return response({ error: "invalid_duration" }, 400, headers);
+      }
+      input = decoded as Record<string, unknown>;
+    } catch {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
+    if (Object.keys(input).some(k => k !== "durationSeconds")) {
       return response({ error: "invalid_duration" }, 400, headers);
     }
     const duration = input.durationSeconds;
