@@ -67,14 +67,32 @@ async function publicFetch(path: string, getToken: TokenGetter): Promise<Respons
   return response;
 }
 
+export type PostPage = { posts: PostRow[]; nextCursor: string | null };
+
 export async function listPosts(
   getToken: TokenGetter,
   cursor: string | null = null,
-): Promise<{ posts: PostRow[]; nextCursor: string | null }> {
+  pieceId: string | null = null,
+): Promise<PostPage> {
   const qs = new URLSearchParams({ limit: '20' });
   if (cursor) qs.set('cursor', cursor);
+  if (pieceId) qs.set('pieceId', pieceId);
   const response = await publicFetch(`/posts?${qs}`, getToken);
-  return await response.json() as { posts: PostRow[]; nextCursor: string | null };
+  return await response.json() as PostPage;
+}
+
+export async function listUserPosts(
+  userId: string,
+  getToken: TokenGetter,
+  cursor: string | null = null,
+): Promise<PostPage> {
+  const qs = new URLSearchParams({ limit: '20' });
+  if (cursor) qs.set('cursor', cursor);
+  const response = await publicFetch(
+    `/users/${encodeURIComponent(userId)}/posts?${qs}`,
+    getToken,
+  );
+  return await response.json() as PostPage;
 }
 
 export async function getPost(id: string, getToken: TokenGetter): Promise<PostRow> {
