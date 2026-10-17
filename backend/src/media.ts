@@ -72,7 +72,7 @@ async function hmac(key: Uint8Array, value: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(value)));
 }
 
-async function signUrl(
+export async function signUrl(
   env: MediaEnv, key: string, method: "PUT" | "GET", expires: number, mime?: string
 ): Promise<string> {
   if (!env.R2_ACCOUNT_ID || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY) {
@@ -111,6 +111,13 @@ async function signUrl(
   const signatureBytes = await hmac(keyBytes, toSign);
   const signature = Array.from(signatureBytes, b => b.toString(16).padStart(2, "0")).join("");
   return `https://${host}${resource}?${query}&X-Amz-Signature=${signature}`;
+}
+
+function hasMediaInUseError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { message?: unknown; cause?: unknown };
+  return (typeof e.message === "string" && e.message.includes("media_in_use"))
+    || (e.cause !== error && hasMediaInUseError(e.cause));
 }
 
 function dbMessage(error: unknown): string | null {
@@ -286,18 +293,27 @@ export async function handleMedia(
     }
     const linked = await sql`
       SELECT 1 FROM public.practice_records
-      WHERE user_id = ${userId}::uuid AND audio_media_id = ${id}::uuid LIMIT 1
+      WHERE user_id = ${userId}::uuid AND audio_media_id = ${id}::uuid
+      UNION ALL
+      SELECT 1 FROM public.post_media
+      WHERE user_id = ${userId}::uuid AND media_id = ${id}::uuid
+      LIMIT 1
     `;
     if (linked.length) return response({ error: "media_in_use" }, 409, headers);
-    const rows = await sql`
-      UPDATE public.media
-      SET deleted_at = now(), purge_at = now() + INTERVAL '30 days', updated_at = now()
-      WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
-        AND upload_status = 'ready' AND deleted_at IS NULL
-      RETURNING id, deleted_at, purge_at
-    `;
-    return rows.length ? response({ media: rows[0] }, 200, headers)
-      : response({ error: "media_not_available" }, 409, headers);
+    try {
+      const rows = await sql`
+        UPDATE public.media
+        SET deleted_at = now(), purge_at = now() + INTERVAL '30 days', updated_at = now()
+        WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+          AND upload_status = 'ready' AND deleted_at IS NULL
+        RETURNING id, deleted_at, purge_at
+      `;
+      return rows.length ? response({ media: rows[0] }, 200, headers)
+        : response({ error: "media_not_available" }, 409, headers);
+    } catch (error) {
+      if (hasMediaInUseError(error)) return response({ error: "media_in_use" }, 409, headers);
+      throw error;
+    }
   }
 
   if (action === "restore" && method === "POST") {
@@ -316,7 +332,11 @@ export async function handleMedia(
     if (!media.deleted_at) return response({ error: "delete_first" }, 409, headers);
     const linked = await sql`
       SELECT 1 FROM public.practice_records
-      WHERE user_id = ${userId}::uuid AND audio_media_id = ${id}::uuid LIMIT 1
+      WHERE user_id = ${userId}::uuid AND audio_media_id = ${id}::uuid
+      UNION ALL
+      SELECT 1 FROM public.post_media
+      WHERE user_id = ${userId}::uuid AND media_id = ${id}::uuid
+      LIMIT 1
     `;
     if (linked.length) return response({ error: "media_in_use" }, 409, headers);
     await env.MEDIA_BUCKET.delete(key);
