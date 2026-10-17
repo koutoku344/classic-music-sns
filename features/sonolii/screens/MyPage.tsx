@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { me, posts, recruitments } from '../data';
+import { me, recruitments } from '../data';
+import { listUserPosts, type PostRow } from '../lib/postApi';
+import PostSummary from '../components/PostSummary';
 import { getAllPractices } from '../lib/practiceApi';
 import { getMediaUsage, formatMediaBytes } from '../lib/mediaApi';
 import type { MediaUsage } from '../lib/mediaApi';
@@ -24,6 +26,7 @@ import {
 
 type ProfileResponse = {
   profile: {
+    user_id: string;
     display_name: string;
     bio: string;
     instruments: string[];
@@ -52,6 +55,7 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice'>('all');
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profile, setProfile] = useState<{
+    user_id: string;
     display_name: string;
     bio: string;
     instruments: string[];
@@ -158,9 +162,45 @@ export default function MyPage({ navigate }: MyPageProps) {
     return () => { active = false; };
   }, [isLoaded, isSignedIn, getToken]);
 
-  const myPosts = posts.filter((p) => p.user.id === 'me');
-  if (myPosts.length === 0) {
-    myPosts.push(posts[0], posts[2]);
+  const [myPosts, setMyPosts] = useState<PostRow[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsMoreBusy, setPostsMoreBusy] = useState(false);
+  const [postsError, setPostsError] = useState('');
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !profile?.user_id) {
+      setMyPosts([]);
+      setPostsCursor(null);
+      setPostsLoading(false);
+      return;
+    }
+    let active = true;
+    setPostsLoading(true);
+    setPostsError('');
+    void listUserPosts(profile.user_id, getToken)
+      .then(page => {
+        if (active) { setMyPosts(page.posts); setPostsCursor(page.nextCursor); }
+      })
+      .catch(e => { if (active) setPostsError(e instanceof Error ? e.message : '投稿を取得できませんでした。'); })
+      .finally(() => { if (active) setPostsLoading(false); });
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, profile?.user_id, getToken]);
+
+  async function loadMorePosts() {
+    if (!postsCursor || !profile?.user_id || postsMoreBusy) return;
+    setPostsMoreBusy(true);
+    try {
+      const page = await listUserPosts(profile.user_id, getToken, postsCursor);
+      setMyPosts(current => [...current, ...page.posts.filter(
+        p => !current.some(existing => existing.id === p.id)
+      )]);
+      setPostsCursor(page.nextCursor);
+    } catch (e) {
+      setPostsError(e instanceof Error ? e.message : '追加取得に失敗しました。');
+    } finally {
+      setPostsMoreBusy(false);
+    }
   }
 
   const myRecruitments = recruitments.filter((r) => r.user.id === 'me');
@@ -315,25 +355,9 @@ export default function MyPage({ navigate }: MyPageProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatBox
-          icon={Heart}
-          value={myPosts.reduce((s, p) => s + p.likes, 0)}
-          label="総Likes"
-          color="text-burgundy-500"
-        />
-        <StatBox
-          icon={MessageCircle}
-          value={myPosts.reduce((s, p) => s + p.comments.length + p.timestampComments.length, 0)}
-          label="総Comments"
-          color="text-teal-600"
-        />
-        <StatBox
-          icon={Music2}
-          value={myRepertoire.length}
-          label="レパートリー"
-          color="text-sage-600"
-        />
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <StatBox icon={Music2} value={myPosts.length} label="取得済み投稿数" color="text-teal-600" />
+        <StatBox icon={BookOpen} value={myRepertoire.length} label="レパートリー" color="text-sage-600" />
       </div>
 
       <div className="flex gap-1 mb-5 bg-white rounded-xl border border-ink-100 p-1">
@@ -356,35 +380,23 @@ export default function MyPage({ navigate }: MyPageProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {showPosts && myPosts.map((p) => (
-          <button
-            key={`post-${p.id}`}
-            onClick={() => navigate('postDetail', { id: p.id })}
-            className="bg-white rounded-xl border border-ink-100 overflow-hidden hover:shadow-md transition-shadow text-left animate-slide-up"
-          >
-            {p.imageUrl ? (
-              <img src={p.imageUrl} alt="" className="w-full h-32 object-cover" />
-            ) : (
-              <div className="w-full h-32 bg-gradient-to-br from-teal-50 to-ink-50 flex items-center justify-center">
-                <Music2 size={32} className="text-teal-300" />
-              </div>
-            )}
-            <div className="p-3">
-              <p className="text-xs font-serif text-ink-800 truncate">
-                <span className="italic text-ink-500">{p.piece.composer}</span> / {p.piece.title}
-              </p>
-              <p className="text-xs text-ink-400 truncate mt-1">{p.body}</p>
-              <div className="flex items-center gap-3 mt-2 text-ink-400">
-                <span className="flex items-center gap-1 text-xs">
-                  <Heart size={12} /> {p.likes}
-                </span>
-                <span className="flex items-center gap-1 text-xs">
-                  <MessageCircle size={12} /> {p.comments.length + p.timestampComments.length}
-                </span>
-              </div>
-            </div>
-          </button>
+        {showPosts && postsLoading && <p className="text-sm text-ink-500 col-span-2">投稿を読み込み中...</p>}
+        {showPosts && postsError && <p role="alert" className="text-sm text-red-600 col-span-2">{postsError}</p>}
+        {showPosts && !postsLoading && myPosts.length === 0 && !postsError && (
+          <p className="text-sm text-ink-500 col-span-2">まだ投稿がありません。</p>
+        )}
+        {showPosts && myPosts.map(post => (
+          <div key={post.id} className="col-span-2">
+            <PostSummary post={post} getToken={getToken}
+              onOpen={() => navigate('postDetail', { id: post.id })} />
+          </div>
         ))}
+        {showPosts && postsCursor && (
+          <button type="button" onClick={() => void loadMorePosts()} disabled={postsMoreBusy}
+            className="col-span-2 rounded-lg border border-ink-200 text-teal-700 py-3 text-sm disabled:opacity-50">
+            {postsMoreBusy ? '読み込み中...' : 'さらに投稿を表示'}
+          </button>
+        )}
 
         {showRecruitments && myRecruitments.map((r) => (
           <button
