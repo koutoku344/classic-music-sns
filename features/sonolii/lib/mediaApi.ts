@@ -114,7 +114,7 @@ export function getAudioDurationSeconds(source: File | string): Promise<number> 
     element.addEventListener('seeked', checkDuration);
     element.addEventListener('error', () => done(null));
     element.preload = 'metadata';
-    element.src = localUrl ?? source;
+    element.src = typeof source === 'string' ? source : localUrl!;
     element.load();
   });
 }
