@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
-import { ArrowLeft, Music2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Music2, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { ScreenName } from '../types';
 import { getPost, deletePost, type PostRow } from '../lib/postApi';
 import { API_BASE } from '../lib/repertoireApi';
@@ -19,6 +19,8 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const fromMyPage = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('from') === 'my-page';
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -62,7 +64,7 @@ export default function PostDetail({ postId, navigate }: Props) {
     setError('');
     try {
       await deletePost(post.id, getToken);
-      navigate('community');
+      navigate('myPage');
     } catch (e) {
       setError(e instanceof Error ? e.message : '削除できませんでした。');
       setDeleting(false);
@@ -73,7 +75,7 @@ export default function PostDetail({ postId, navigate }: Props) {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <button onClick={() => navigate('community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
-        <ArrowLeft size={18}/> コミュニティへ戻る
+        <ArrowLeft size={18}/> {fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
 
       {loading && <p role="status" className="text-sm text-ink-500">投稿を読み込み中...</p>}
@@ -90,17 +92,13 @@ export default function PostDetail({ postId, navigate }: Props) {
               <span className="text-xs text-ink-400">
                 {new Date(post.created_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
-              {myUserId === post.user_id && (
+              {fromMyPage && myUserId === post.user_id && (
                 <div className="relative">
                   <button type="button" onClick={() => setShowMenu(v => !v)}
                     aria-label="投稿の操作" aria-expanded={showMenu}
                     className="p-2 rounded-lg hover:bg-ink-50"><MoreHorizontal size={20}/></button>
                   {showMenu && (
                     <div className="absolute right-0 top-full z-20 w-40 rounded-xl border border-ink-200 bg-white shadow-md p-1">
-                      <button type="button" onClick={() => navigate('editPost', { id: post.id })}
-                        className="flex items-center gap-2 w-full p-2 text-sm hover:bg-ink-50">
-                        <Pencil size={15}/> 編集
-                      </button>
                       <button type="button" disabled={deleting} onClick={() => void removePost()}
                         className="flex items-center gap-2 w-full p-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50">
                         <Trash2 size={15}/> {deleting ? '削除中...' : '削除'}
