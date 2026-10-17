@@ -73,10 +73,15 @@ export default function CreatePost({ navigate }: Props) {
   }
 
   const busy = saving || loading || audioBusy || imageBusy;
-  const canPost = isSignedIn && !busy && (body.trim().length > 0 || !!audioId || imageIds.length > 0);
+  const canPost = isSignedIn && !busy && (!piece || !!audioId)
+    && (body.trim().length > 0 || !!audioId || imageIds.length > 0);
 
   async function save() {
     if (!canPost || createdId) return;
+    if (piece && !audioId) {
+      setError('演奏した曲を選択した場合は、音声を添付してください。');
+      return;
+    }
     if (body.trim().length > 2000) {
       setError('本文は2000文字以内にしてください。');
       return;
@@ -159,9 +164,9 @@ export default function CreatePost({ navigate }: Props) {
               onSelect={p => setPiece(p as SelectablePiece | null)}
               ownedPieces={ownedPieces}
               recentPieces={[]}
-              label="演奏した曲（任意）"
+              label="演奏した曲（音声がある場合のみ・任意）"
             />
-            <p className="text-xs text-ink-500 mt-1">曲を選択すると、同じ曲を探している人に見つけてもらいやすくなります。</p>
+            <p className="text-xs text-ink-500 mt-1">曲の選択は任意です。選択する場合は音声の添付が必須です。</p>
           </div>
 
           <PracticeAudioPicker
@@ -200,8 +205,13 @@ export default function CreatePost({ navigate }: Props) {
               onChange={e => setCommentsEnabled(e.target.checked)} />
           </div>
 
+          {piece && !audioId && (
+            <p role="status" className="text-sm text-amber-700">
+              演奏した曲を選択したため、音声を添付すると投稿できます。
+            </p>
+          )}
           <p className="text-xs text-ink-500">
-            本文・音声・画像のうち1つ以上が必要です。投稿の公開範囲はプロフィール設定に従います。
+            本文・音声・画像のうち1つ以上が必要です。曲を選択した場合は音声必須です。公開範囲はプロフィール設定に従います。
           </p>
           <button type="button" disabled={!canPost}
             onClick={() => void save()}
