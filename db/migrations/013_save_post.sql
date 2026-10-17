@@ -47,9 +47,9 @@ BEGIN
     RAISE EXCEPTION 'piece_not_found' USING ERRCODE = '22023';
   END IF;
 
-  SELECT count(DISTINCT x), count(*)
+  SELECT count(DISTINCT x.media_id), count(*)
   INTO v_count, v_audio
-  FROM unnest(p_media_ids) x;
+  FROM unnest(p_media_ids) AS x(media_id);
   IF v_count <> v_audio OR array_position(p_media_ids, NULL) IS NOT NULL THEN
     RAISE EXCEPTION 'invalid_media_ids' USING ERRCODE = '22023';
   END IF;
