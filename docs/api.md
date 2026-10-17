@@ -462,3 +462,25 @@ Error Responseは共通形式とする。
 練習記録POST/PATCHに任意の`audioMediaId`を追加する。nullで関連解除。本人のready・未削除・audio型のみ許可し、他人のMedia IDは404扱い。練習記録削除はMedia本体を保持する。
 
 フロー: upload許可（quota予約）→ ClientのR2単一PUT → complete（HEADで実サイズと存在確認）→ PracticeへのID紐づけ。未完了・失敗時は期限切れ予約と残存Objectを定期回収。期限切れ署名URLや不正なContent-Type・サイズは拒否／無効化する。大容量の失敗時はURLを取り直して全体再送する（multipart resumeなし）。
+
+---
+
+## STEP9 実装済み投稿API（既存の一般構想よりこちらを優先）
+
+現在のBackend Workerでは投稿APIのパスに `/api/v1` は付けない。
+
+| Method | Path | 認証 | 内容 |
+| --- | --- | --- | --- |
+| POST | `/posts` | 必須 | 投稿作成。201 |
+| GET | `/posts?limit=20&cursor=...&pieceId=...` | 任意 | 公開および本人の投稿一覧、共通曲マスターID検索、カーソルページング |
+| GET | `/posts/{id}` | 任意 | 権限のある投稿詳細 |
+| PATCH | `/posts/{id}` | 必須 | 本人の投稿全量更新。200（編集UIからの導線は現状非表示） |
+| DELETE | `/posts/{id}` | 必須 | 本人の投稿削除。204。Media/R2は削除しない |
+| GET | `/users/{id}/posts` | 任意 | 指定ユーザーの閲覧可能な投稿一覧 |
+| POST | `/posts/{id}/media/{mediaId}/read-url` | 任意 | 投稿閲覧可否を確認してR2署名付きURLを300秒で発行 |
+
+POST/PATCH Bodyは `body` (最大2000文字)、`pieceId` / `userPieceId` (どちらか一方・任意)、`commentsEnabled`、`feedbackPrefs`、`mediaIds`（音声最大1件、画像最大5件）。本文またはメディアが最低1件必要。**曲を指定する場合はready音声の添付が必須**で、違反すると `400 piece_requires_audio`。曲なし音声ありは許可する。所有者以外・存在しない投稿は404。未認証更新は401。投稿に使用中のメディア削除は409 `media_in_use`。
+
+`followers`は承認／フォロー機能未実装のため本人だけ閲覧可。`public`なら第三者閲覧可。`private`は本人のみ。短時間URLは発行後即座に失効できないため、発行から最大300秒の閲覧余地がある。
+
+詳しい検証結果と未実施事項は [STEP9-9完了判定](step9-9-closure.md) を参照。
