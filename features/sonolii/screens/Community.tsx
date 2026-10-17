@@ -112,9 +112,16 @@ export default function Community({ navigate }: CommunityProps) {
         {showPosts && loading && <p className="text-sm text-ink-500">投稿を読み込み中...</p>}
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         {showPosts && !loading && posts.map(post => (
-          <article key={post.id} className="bg-white rounded-2xl border border-ink-100 p-4 sm:p-5 space-y-3">
+          <article key={post.id} role="link" tabIndex={0}
+            onClick={() => navigate('postDetail', { id: post.id })}
+            onKeyDown={e => {
+              if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault(); navigate('postDetail', { id: post.id });
+              }
+            }}
+            className="bg-white rounded-2xl border border-ink-100 p-4 sm:p-5 space-y-3 cursor-pointer hover:border-teal-300 hover:shadow-sm focus-visible:outline-teal-600">
             <div className="flex items-center justify-between gap-2">
-              <button type="button" onClick={() => navigate('userProfile', { id: post.user_id })}
+              <button type="button" onClick={e => { e.stopPropagation(); navigate('userProfile', { id: post.user_id }); }}
                 className="font-medium text-ink-900 text-sm hover:text-teal-700">
                 {post.display_name || 'ユーザー'}
               </button>
@@ -126,7 +133,9 @@ export default function Community({ navigate }: CommunityProps) {
               </p>
             )}
             {post.body && <p className="text-sm text-ink-700 whitespace-pre-line">{post.body}</p>}
-            <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
+            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
+            </div>
             {post.feedback_prefs?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {post.feedback_prefs.map(p => (
@@ -134,8 +143,6 @@ export default function Community({ navigate }: CommunityProps) {
                 ))}
               </div>
             )}
-            <button onClick={() => navigate('postDetail', { id: post.id })}
-              className="text-sm text-teal-700 font-medium underline">投稿詳細を見る</button>
           </article>
         ))}
         {showPosts && !loading && posts.length === 0 && !error && (
