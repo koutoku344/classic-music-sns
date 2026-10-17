@@ -8,7 +8,7 @@ import {
 } from '../lib/practiceApi';
 import PiecePicker from '../components/PiecePicker';
 import PracticeAudioPicker from '../components/PracticeAudioPicker';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { ArrowLeft, Clock, Mic, ChevronRight } from 'lucide-react';
 
 type Props = {
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
@@ -28,6 +28,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [audioBusy, setAudioBusy] = useState(false);
+  const [audioPanel, setAudioPanel] = useState(false);
   const [error, setError] = useState('');
   
   // A recording saved from /record is passed as a media ID, not a temporary Blob.
@@ -105,7 +106,12 @@ export default function CreatePractice({ navigate, editId }: Props) {
   }, [isLoaded, isSignedIn, getToken, editId]);
 
   async function save() {
-    if (!piece || !isSignedIn || saving || loading || audioBusy) {
+    if (!isSignedIn || saving || loading || audioBusy) {
+      return;
+    }
+    setError('');
+    if (!piece) {
+      setError('練習した曲を選択してください。');
       return;
     }
     if (
@@ -185,15 +191,35 @@ export default function CreatePractice({ navigate, editId }: Props) {
             className="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-xl text-sm" />
         </div>
         {isSignedIn && (
-          <PracticeAudioPicker
-            getToken={getToken}
-            value={audioMediaId}
-            onChange={setAudioMediaId}
-            onBusyChange={setAudioBusy}
-            disabled={saving || loading}
-          />
+          <section className="border-t border-ink-100 pt-4">
+            <button type="button" onClick={() => { if (!audioBusy) setAudioPanel(p => !p); }}
+              disabled={saving || loading || audioBusy} aria-expanded={audioPanel}
+              className="w-full flex items-center justify-between rounded-xl border border-ink-200 p-3 text-sm text-teal-700 disabled:opacity-50">
+              <span className="flex items-center gap-2">
+                <Mic size={19}/> 音声を添付（任意）{audioMediaId ? ' ✓ 選択済み' : ''}
+              </span>
+              <ChevronRight size={18} className={audioPanel ? 'rotate-90' : ''}/>
+            </button>
+            {audioPanel && (
+              <div className="mt-3 space-y-3">
+                <PracticeAudioPicker
+                  getToken={getToken}
+                  value={audioMediaId}
+                  onChange={setAudioMediaId}
+                  onBusyChange={setAudioBusy}
+                  disabled={saving || loading}
+                  contextLabel="練習記録"
+                />
+                <button type="button" disabled={audioBusy}
+                  onClick={() => setAudioPanel(false)}
+                  className="w-full rounded-xl border border-ink-200 p-3 text-sm disabled:opacity-50">
+                  入力画面へ戻る
+                </button>
+              </div>
+            )}
+          </section>
         )}
-        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !piece || !isSignedIn}
+        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !isSignedIn}
           className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-40">
           {saving ? '保存中...' : editId ? '変更を保存' : '記録する'}
         </button>
