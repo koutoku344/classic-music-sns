@@ -1,6 +1,7 @@
 import { verifyToken } from "@clerk/backend";
 import { neon } from "@neondatabase/serverless";
 import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
+import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -323,14 +324,15 @@ export default {
       catalogGet || repList || repCreate || repUpdate || repDelete ||
       userPiecesList || userPiecesCreate || userPiecesPatch ||
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
-      isMediaRoute(url.pathname))) {
+      isMediaRoute(url.pathname) || isPostRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
     // Public endpoint: a token is optional. Invalid/expired tokens never grant visibility.
     const clerkId = await identity(request, env);
 
-    if (!publicGet && !catalogGet && !clerkId) {
+    if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
+      !isPostMediaReadUrl(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -345,6 +347,20 @@ export default {
     const sql = neon(env.DATABASE_URL);
 
     try {
+      // Public post GETs must not upsert a user for anonymous visitors.
+      // Authenticated visitors are looked up for owner visibility.
+      if (isPublicPostRead(request.method, url.pathname) ||
+          isPostMediaReadUrl(request.method, url.pathname)) {
+        let viewerId: string | null = null;
+        if (clerkId) {
+          const viewers = await sql`
+            SELECT id FROM public.users WHERE clerk_user_id = ${clerkId} LIMIT 1
+          `;
+          viewerId = (viewers[0]?.id as string | undefined) ?? null;
+        }
+        return await handlePosts(request, sql, env, viewerId, headers);
+      }
+
       if (catalogGet) {
         const composerId = url.searchParams.get("composerId");
         const query = (url.searchParams.get("q") ?? "").trim();
@@ -459,6 +475,10 @@ export default {
 
       if (isMediaRoute(url.pathname)) {
         return await handleMedia(request, env, sql, userId, headers);
+      }
+
+      if (isPostRoute(url.pathname)) {
+        return await handlePosts(request, sql, env, userId, headers);
       }
 
       // Read with the same projection for GET, POST and PATCH.

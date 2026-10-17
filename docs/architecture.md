@@ -524,3 +524,21 @@ R2 Compressed Video
 - Freeプランの「音声12か月保持」は未実装。R2にある通常の音声は期限指定なし、論理削除されたメディアは30日後のCron物理削除対象。
 - Cronの設定・スケジュール・実処理については `backend/wrangler.jsonc` → `backend/src/index.ts` の `scheduled` → `backend/src/media.ts` の `cleanupMedia` の順に参照する。
 - Cronの自動削除結果は確認待ち。最新の確認結果・残課題は [STEP8検証・運用記録](step8-media-verification.md) を参照する。
+
+---
+
+## STEP9 実装済み投稿アーキテクチャ（2026-10-17）
+
+上記の全体構想には後続STEPで実装する機能も含む。STEP9時点の実装範囲は以下のとおり。
+
+- Frontend：`CreatePost`、`Community`、`PostDetail`、`MyPage`、`UserProfile`、`Search` がBackendの実投稿APIを参照。投稿作成は本文と添付アイコンを中心とし、録音／ファイル／保存済み音声から曲選択に進む。練習記録の項目・制約は変更していない。
+- Backend：`backend/src/posts.ts` が `POST /posts`、`GET /posts`、`GET /posts/:id`、`PATCH /posts/:id`、`DELETE /posts/:id`、`GET /users/:id/posts`、`POST /posts/:id/media/:mediaId/read-url` を扱う。
+- DB：`posts`と`post_media`をNeonに永続化し、既存`media`行を参照する。PostとMediaの多対多の関連を保ち、R2オブジェクトはコピーしない。投稿削除ではPost・その参照だけを削除し、Media/R2は保持。
+- トランザクション：`public.save_post()`（011〜015マイグレーションで実装）で投稿と参照を原子的に保存。対象メディアを`FOR UPDATE`でロックし、投稿中メディアの削除は`media_post_reference_protect`トリガーで拒否する。
+- 投稿条件：本文・音声・画像のいずれか1つ以上。マスター曲`piece_id`または独自曲`user_piece_id`は任意だが、いずれか指定した場合はready音声添付が必須（migration 015）。
+- 公開範囲：投稿単位のvisibilityは持たず、`profiles.visibility`を使用。`public`は第三者閲覧可、`private/followers`はフォロー未実装のため本人のみ。表示の可否とR2署名URL（300秒）の発行をBackendで判定する。
+- 投稿検索：マスター曲`pieceId`のみをBackend/DBで絞る。独自登録曲の横断検索は未実装。
+- 投稿編集：PATCH APIは存在するが投稿詳細の編集メニューはUIから外している。削除メニューはマイページ由来の本人投稿に表示される。遷移元のURLパラメータは**UI表示用であり認可情報ではない**。DELETEではJWTと`posts.user_id`で所有者を検証する。
+- 音声の再生速度はブラウザ処理。ブラウザへの`nodownload`指定は操作項目を隠すだけで、ファイル取得をセキュリティ上禁止する機能ではない。
+
+STEP9の実施結果とリリース前の未検証事項は [STEP9-9 完了判定](step9-9-closure.md) に記録する。

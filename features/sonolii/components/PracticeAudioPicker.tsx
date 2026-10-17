@@ -10,11 +10,12 @@ type Props = {
   onChange: (id: string | null) => void;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  contextLabel?: '投稿' | '練習記録';
 };
 
 const MAX_SECONDS = 30 * 60;
 
-export default function PracticeAudioPicker({ getToken, value, onChange, disabled = false, onBusyChange }: Props) {
+export default function PracticeAudioPicker({ getToken, value, onChange, disabled = false, onBusyChange, contextLabel = '練習記録' }: Props) {
   const [mode, setMode] = useState<'record' | 'file' | 'past'>('record');
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -204,7 +205,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
             className="text-xs text-red-600 disabled:opacity-50">紐づけを解除</button>
         )}
       </div>
-      <p className="text-xs text-ink-500">音声は非公開で保存されます。練習記録から外しても音声自体は残ります。</p>
+      <p className="text-xs text-ink-500">音声は非公開で保存されます。{contextLabel}から外しても音声自体は残ります。</p>
       <div className="grid grid-cols-3 gap-1.5">
         <button type="button" onClick={() => setMode('record')} disabled={disabled || uploading || recording}
           className={`px-2 py-2 rounded-lg text-xs flex flex-col items-center gap-1 border ${mode === 'record' ? 'border-teal-500 bg-teal-50' : 'border-ink-200'}`}>
@@ -238,7 +239,7 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
                 録音時間 {Math.floor(recordedSeconds / 60)}:{String(recordedSeconds % 60).padStart(2, '0')}
                 {' ・ '}{(recorded.size / 1_000_000).toFixed(1)}MB
               </p>
-              {recordPreview && <audio controls preload="metadata" src={recordPreview} className="w-full" />}
+              {recordPreview && <audio controls controlsList="nodownload" preload="metadata" src={recordPreview} className="w-full" />}
               <p className="text-xs text-ink-500">WebM形式では、Chromeの標準プレイヤーが再生時間を0:00と表示する場合があります。上記の録音時間が実測値です。</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={uploading || disabled}
@@ -283,8 +284,8 @@ export default function PracticeAudioPicker({ getToken, value, onChange, disable
       {uploading && <p role="status" className="text-sm text-ink-600">R2にアップロードしています。画面を閉じずにお待ちください。</p>}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {value && <div className="space-y-2">
-        <p className="text-xs text-teal-700">音声を選択中（練習記録の保存で紐づけ確定）</p>
-        {preview && <audio controls src={preview} className="w-full" />}
+        <p className="text-xs text-teal-700">音声を選択中（{contextLabel}の保存で紐づけ確定）</p>
+        {preview && <audio controls controlsList="nodownload" src={preview} className="w-full" />}
       </div>}
     </section>
   );

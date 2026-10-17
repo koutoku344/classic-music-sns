@@ -8,7 +8,7 @@ import {
 } from '../lib/practiceApi';
 import PiecePicker from '../components/PiecePicker';
 import PracticeAudioPicker from '../components/PracticeAudioPicker';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { ArrowLeft, Clock, Mic, ChevronRight } from 'lucide-react';
 
 type Props = {
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
@@ -28,6 +28,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [audioBusy, setAudioBusy] = useState(false);
+  const [audioPanel, setAudioPanel] = useState(false);
   const [error, setError] = useState('');
   
   // A recording saved from /record is passed as a media ID, not a temporary Blob.
@@ -105,7 +106,12 @@ export default function CreatePractice({ navigate, editId }: Props) {
   }, [isLoaded, isSignedIn, getToken, editId]);
 
   async function save() {
-    if (!piece || !isSignedIn || saving || loading || audioBusy) {
+    if (!isSignedIn || saving || loading || audioBusy) {
+      return;
+    }
+    setError('');
+    if (!piece) {
+      setError('練習した曲を選択してください。');
       return;
     }
     if (
@@ -152,7 +158,6 @@ export default function CreatePractice({ navigate, editId }: Props) {
       <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">{editId ? '練習記録を編集' : '練習を記録'}</h1>
       <div className="bg-white rounded-2xl border border-ink-100 p-5 sm:p-6 space-y-5">
         {loading && <p className="text-ink-500 text-sm">読み込み中...</p>}
-        {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
         <div>
           <label htmlFor="practice-date"
             className="block text-sm font-medium text-ink-700 mb-2">練習日</label>
@@ -185,15 +190,36 @@ export default function CreatePractice({ navigate, editId }: Props) {
             className="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-xl text-sm" />
         </div>
         {isSignedIn && (
-          <PracticeAudioPicker
-            getToken={getToken}
-            value={audioMediaId}
-            onChange={setAudioMediaId}
-            onBusyChange={setAudioBusy}
-            disabled={saving || loading}
-          />
+          <section className="border-t border-ink-100 pt-4">
+            <button type="button" onClick={() => { if (!audioBusy) setAudioPanel(p => !p); }}
+              disabled={saving || loading || audioBusy} aria-expanded={audioPanel}
+              className="w-full flex items-center justify-between rounded-xl border border-ink-200 p-3 text-sm text-teal-700 disabled:opacity-50">
+              <span className="flex items-center gap-2">
+                <Mic size={19}/> 音声を添付（任意）{audioMediaId ? ' ✓ 選択済み' : ''}
+              </span>
+              <ChevronRight size={18} className={audioPanel ? 'rotate-90' : ''}/>
+            </button>
+            {audioPanel && (
+              <div className="mt-3 space-y-3">
+                <PracticeAudioPicker
+                  getToken={getToken}
+                  value={audioMediaId}
+                  onChange={setAudioMediaId}
+                  onBusyChange={setAudioBusy}
+                  disabled={saving || loading}
+                  contextLabel="練習記録"
+                />
+                <button type="button" disabled={audioBusy}
+                  onClick={() => setAudioPanel(false)}
+                  className="w-full rounded-xl border border-ink-200 p-3 text-sm disabled:opacity-50">
+                  入力画面へ戻る
+                </button>
+              </div>
+            )}
+          </section>
         )}
-        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !piece || !isSignedIn}
+        {error && <p role="alert" className="text-red-600 text-sm">{error}</p>}
+        <button onClick={() => void save()} disabled={loading || saving || audioBusy || !isSignedIn}
           className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-40">
           {saving ? '保存中...' : editId ? '変更を保存' : '記録する'}
         </button>

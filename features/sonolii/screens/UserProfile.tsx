@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
+import { listUserPosts, type PostRow } from '../lib/postApi';
+import PostSummary from '../components/PostSummary';
 
 type PublicProfile = {
   user_id: string;
@@ -28,6 +30,11 @@ export default function UserProfile({
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [posts, setPosts] = useState<PostRow[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState('');
+  const [moreBusy, setMoreBusy] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -63,6 +70,40 @@ export default function UserProfile({
     return () => controller.abort();
   }, [isLoaded, getToken, userId]);
 
+  useEffect(() => {
+    if (!isLoaded || !profile || profile.restricted) {
+      setPosts([]);
+      setPostsCursor(null);
+      return;
+    }
+    let active = true;
+    setPostsLoading(true);
+    setPostsError('');
+    void listUserPosts(profile.user_id, getToken)
+      .then(page => {
+        if (active) { setPosts(page.posts); setPostsCursor(page.nextCursor); }
+      })
+      .catch(e => { if (active) setPostsError(e instanceof Error ? e.message : '投稿を取得できませんでした。'); })
+      .finally(() => { if (active) setPostsLoading(false); });
+    return () => { active = false; };
+  }, [isLoaded, profile?.user_id, profile?.restricted, getToken]);
+
+  async function loadMore() {
+    if (!postsCursor || !profile || moreBusy) return;
+    setMoreBusy(true);
+    try {
+      const page = await listUserPosts(profile.user_id, getToken, postsCursor);
+      setPosts(existing => [...existing, ...page.posts.filter(
+        post => !existing.some(p => p.id === post.id)
+      )]);
+      setPostsCursor(page.nextCursor);
+    } catch (e) {
+      setPostsError(e instanceof Error ? e.message : '追加取得に失敗しました。');
+    } finally {
+      setMoreBusy(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <button
@@ -95,9 +136,29 @@ export default function UserProfile({
             </>
           )}
           <p className="mt-6 text-xs text-ink-400">
-            投稿・フォロー・レパートリーの表示は今後対応予定です。
+            フォロー・レパートリーの公開表示は後続STEPで対応予定です。
           </p>
         </div>
+      )}
+      {!loading && !error && profile && !profile.restricted && (
+        <section className="mt-5 space-y-3">
+          <h2 className="font-serif text-lg font-semibold text-ink-900">投稿</h2>
+          {postsLoading && <p className="text-sm text-ink-500">投稿を読み込み中...</p>}
+          {postsError && <p role="alert" className="text-sm text-red-600">{postsError}</p>}
+          {!postsLoading && posts.length === 0 && !postsError && (
+            <p className="text-sm text-ink-500">表示できる投稿はありません。</p>
+          )}
+          {posts.map(post => (
+            <PostSummary key={post.id} post={post} getToken={getToken}
+              onOpen={() => navigate('postDetail', { id: post.id })}/>
+          ))}
+          {postsCursor && (
+            <button type="button" onClick={() => void loadMore()} disabled={moreBusy}
+              className="w-full border border-ink-200 rounded-lg text-teal-700 py-3 text-sm disabled:opacity-50">
+              {moreBusy ? '読み込み中...' : 'さらに投稿を表示'}
+            </button>
+          )}
+        </section>
       )}
     </div>
   );

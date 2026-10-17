@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { users, posts, recruitments, pieces, recentPieceIds } from '../data';
+import { users, recruitments } from '../data';
+import { loadCatalog, type SelectablePiece } from '../lib/practiceApi';
+import { listPosts, type PostRow } from '../lib/postApi';
+import PostSummary from '../components/PostSummary';
 import Avatar from '../components/Avatar';
-import PostCard from '../components/PostCard';
 import RecruitmentCard from '../components/RecruitmentCard';
 import PiecePicker from '../components/PiecePicker';
 import { Search as SearchIcon, Music2, MapPin, X } from 'lucide-react';
@@ -11,14 +14,64 @@ interface SearchProps {
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
 }
 
-const recentPieces = pieces.filter((p) => recentPieceIds.includes(p.id));
-
 type Tab = 'users' | 'posts' | 'recruitments';
 
 export default function Search({ navigate }: SearchProps) {
   const [tab, setTab] = useState<Tab>('users');
   const [userQuery, setUserQuery] = useState('');
+  const { isLoaded, getToken } = useAuth();
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
+  const [catalog, setCatalog] = useState<SelectablePiece[]>([]);
+  const [postRows, setPostRows] = useState<PostRow[]>([]);
+  const [postCursor, setPostCursor] = useState<string | null>(null);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsMoreBusy, setPostsMoreBusy] = useState(false);
+  const [postsError, setPostsError] = useState('');
+  const [catalogError, setCatalogError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void loadCatalog().then(rows => {
+      if (active) setCatalog(rows);
+    }).catch(e => {
+      if (active) setCatalogError(e instanceof Error ? e.message : '曲マスターを読み込めませんでした。');
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded || tab !== 'posts') return;
+    let active = true;
+    setPostsLoading(true);
+    setPostsError('');
+    setPostRows([]);
+    setPostCursor(null);
+    void listPosts(getToken, null, selectedPiece?.id ?? null)
+      .then(data => {
+        if (active) { setPostRows(data.posts); setPostCursor(data.nextCursor); }
+      })
+      .catch(e => {
+        if (active) setPostsError(e instanceof Error ? e.message : '検索に失敗しました。');
+      })
+      .finally(() => { if (active) setPostsLoading(false); });
+    return () => { active = false; };
+  }, [isLoaded, getToken, tab, selectedPiece?.id]);
+
+  async function loadMorePosts() {
+    if (!postCursor || postsMoreBusy) return;
+    setPostsMoreBusy(true);
+    try {
+      const data = await listPosts(getToken, postCursor, selectedPiece?.id ?? null);
+      setPostRows(previous => [...previous, ...data.posts.filter(
+        item => !previous.some(p => p.id === item.id)
+      )]);
+      setPostCursor(data.nextCursor);
+    } catch (e) {
+      setPostsError(e instanceof Error ? e.message : '追加の投稿を取得できませんでした。');
+    } finally {
+      setPostsMoreBusy(false);
+    }
+  }
 
   const [rInstrument, setRInstrument] = useState('all');
   const [rRegion, setRRegion] = useState('all');
@@ -29,11 +82,6 @@ export default function Search({ navigate }: SearchProps) {
   const filteredUsers = users.filter(
     (u) => u.name.toLowerCase().includes(uq) || u.instrument.toLowerCase().includes(uq) || u.region.toLowerCase().includes(uq)
   );
-
-  const filteredPosts = posts.filter((p) => {
-    if (selectedPiece) return p.piece.id === selectedPiece.id;
-    return true;
-  });
 
   const filteredRecruitments = recruitments.filter((r) => {
     if (rInstrument !== 'all' && r.instrument !== rInstrument) return false;
@@ -105,23 +153,37 @@ export default function Search({ navigate }: SearchProps) {
         <>
           <div className="bg-white rounded-2xl border border-ink-100 p-5 mb-5">
             <PiecePicker
-              pieces={pieces}
+              pieces={catalog}
+              defaultLibraryMode="catalog"
               selectedPiece={selectedPiece}
               onSelect={setSelectedPiece}
               label="曲で絞り込む（任意）"
               allowFreeInput={false}
-              recentPieces={recentPieces}
+              recentPieces={[]}
             />
           </div>
 
           <div className="space-y-4">
-            {filteredPosts.map((p) => (
-              <PostCard key={p.id} post={p} onPostClick={() => navigate('postDetail', { id: p.id })} onUserClick={() => navigate('userProfile', { id: p.user.id })} />
-            ))}
-            {filteredPosts.length === 0 && (
+            {catalogError && <p role="alert" className="text-sm text-red-600">{catalogError}</p>}
+            <p className="text-xs text-ink-500">
+              共通曲マスターでの絞り込みに対応しています。独自登録曲の横断検索は今後対応予定です。
+            </p>
+            {postsLoading && <p className="text-sm text-ink-500">投稿を検索中...</p>}
+            {postsError && <p role="alert" className="text-sm text-red-600">{postsError}</p>}
+            {!postsLoading && postRows.length === 0 && !postsError && (
               <div className="text-center py-20 text-ink-400">
-                <p>該当する結果がありません</p>
+                <p>該当する投稿がありません</p>
               </div>
+            )}
+            {postRows.map(post => (
+              <PostSummary key={post.id} post={post} getToken={getToken}
+                onOpen={() => navigate('postDetail', { id: post.id })} />
+            ))}
+            {postCursor && (
+              <button type="button" onClick={() => void loadMorePosts()} disabled={postsMoreBusy}
+                className="w-full border border-ink-200 rounded-xl p-3 text-sm text-teal-700 disabled:opacity-50">
+                {postsMoreBusy ? '読み込み中...' : 'さらに投稿を表示'}
+              </button>
             )}
           </div>
         </>

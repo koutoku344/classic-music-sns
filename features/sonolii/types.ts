@@ -1,5 +1,5 @@
 export type ScreenName =
-  | 'landing' | 'auth' | 'community' | 'postDetail' | 'createPost'
+  | 'landing' | 'auth' | 'community' | 'postDetail' | 'createPost' | 'editPost'
   | 'practice' | 'practiceDetail' | 'createPractice'
   | 'recruitmentDetail' | 'createRecruitment'
   | 'recording' | 'mediaManager' | 'search' | 'messages' | 'conversation'
