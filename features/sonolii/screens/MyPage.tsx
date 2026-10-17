@@ -388,7 +388,7 @@ export default function MyPage({ navigate }: MyPageProps) {
         {showPosts && myPosts.map(post => (
           <div key={post.id} className="col-span-2">
             <PostSummary post={post} getToken={getToken}
-              onOpen={() => navigate('postDetail', { id: post.id })} />
+              onOpen={() => navigate('postDetail', { id: post.id, from: 'my-page' })} />
           </div>
         ))}
         {showPosts && postsCursor && (
