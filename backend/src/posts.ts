@@ -90,7 +90,7 @@ function errorMessage(error: unknown): string | null {
   const message = typeof e.message === "string" ? e.message : "";
   for (const code of [
     "invalid_post", "invalid_media_ids", "piece_not_found",
-    "media_not_available", "post_not_found"
+    "media_not_available", "post_not_found", "piece_requires_audio"
   ]) {
     if (message.includes(code)) return code;
   }
