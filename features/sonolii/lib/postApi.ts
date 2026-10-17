@@ -123,3 +123,20 @@ export async function postMediaReadUrl(
   const data = await response.json() as { readUrl: string };
   return data.readUrl;
 }
+
+export async function updatePost(
+  id: string,
+  input: CreatePostInput,
+  getToken: TokenGetter,
+): Promise<void> {
+  await apiFetch(`/posts/${encodeURIComponent(id)}`, getToken, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deletePost(id: string, getToken: TokenGetter): Promise<void> {
+  await apiFetch(`/posts/${encodeURIComponent(id)}`, getToken, {
+    method: 'DELETE',
+  });
+}
