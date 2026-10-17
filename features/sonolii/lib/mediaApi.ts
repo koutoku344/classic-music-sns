@@ -50,6 +50,7 @@ async function authenticated(
       media_in_use: '練習記録または投稿で使用中のメディアです。先に紐づけを解除してください。',
       media_not_restorable: 'この音声は復元できません。',
       delete_first: '先にゴミ箱へ移動してください。',
+      invalid_duration: '音声の再生時間が取得できませんでした。別の音声でお試しください。',
     };
     throw new Error(message[reason] ?? `音声APIエラー（HTTP ${res.status}${reason ? `: ${reason}` : ''}）`);
   }
@@ -71,11 +72,99 @@ export function getAudioMime(file: File): string {
   return mime;
 }
 
+// Read browser media metadata without downloading/transcoding the file in JS.
+// Some recorded WebM files report Infinity until the browser seeks to the end.
+export function getAudioDurationSeconds(source: File | string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const element = document.createElement('audio');
+    const localUrl = source instanceof File ? URL.createObjectURL(source) : null;
+    let finished = false;
+    let seekAttempted = false;
+    const cleanup = () => {
+      element.removeAttribute('src');
+      element.load();
+      if (localUrl) URL.revokeObjectURL(localUrl);
+    };
+    const timer = window.setTimeout(() => done(null), 20000);
+
+    function done(seconds: number | null) {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      cleanup();
+      if (seconds === null) {
+        reject(new Error('音声の再生時間を取得できませんでした。対応形式とファイルを確認してください。'));
+      } else {
+        resolve(seconds);
+      }
+    }
+
+    function checkDuration() {
+      const duration = element.duration;
+      if (Number.isFinite(duration) && duration > 0) {
+        const seconds = Math.ceil(duration);
+        done(seconds <= 86400 ? seconds : null);
+      } else if (!seekAttempted && duration === Infinity && element.seekable.length === 0) {
+        seekAttempted = true;
+        try { element.currentTime = 1e10; } catch { /* timeout reports the issue */ }
+      }
+    }
+    element.addEventListener('loadedmetadata', checkDuration);
+    element.addEventListener('durationchange', checkDuration);
+    element.addEventListener('seeked', checkDuration);
+    element.addEventListener('error', () => done(null));
+    element.preload = 'metadata';
+    element.src = localUrl ?? source;
+    element.load();
+  });
+}
+
+export async function saveAudioDuration(
+  id: string, seconds: number, getToken: TokenGetter
+): Promise<number> {
+  const res = await authenticated(`/media/${encodeURIComponent(id)}/duration`, getToken, {
+    method: 'PATCH',
+    body: JSON.stringify({ durationSeconds: seconds }),
+  });
+  const result = await res.json() as { durationSeconds: number };
+  return result.durationSeconds;
+}
+
+export async function backfillMissingAudioDurations(
+  getToken: TokenGetter,
+  onProgress?: (completed: number, total: number) => void
+): Promise<{ updated: number; failed: number; total: number }> {
+  const missing: MediaRow[] = [];
+  // Backend paginates media results; avoid silently skipping beyond the first 100.
+  for (let offset = 0; ; offset += 100) {
+    const page = await listMedia(getToken, offset, 100);
+    missing.push(...page.filter(m => m.media_type === 'audio' && m.duration_seconds == null));
+    if (page.length < 100) break;
+  }
+
+  let updated = 0;
+  let failed = 0;
+  for (const row of missing) {
+    try {
+      const url = await audioReadUrl(row.id, getToken);
+      const seconds = await getAudioDurationSeconds(url);
+      await saveAudioDuration(row.id, seconds, getToken);
+      updated++;
+    } catch (e) {
+      console.warn('再生時間の補完に失敗:', row.id, e);
+      failed++;
+    }
+    onProgress?.(updated + failed, missing.length);
+  }
+  return { updated, failed, total: missing.length };
+}
+
 export async function uploadAudio(file: File, getToken: TokenGetter): Promise<string> {
   if (file.size < 1 || file.size > 200_000_000) {
     throw new Error('音声ファイルは200MB以下にしてください。');
   }
   const mimeType = getAudioMime(file);
+  const durationSeconds = await getAudioDurationSeconds(file);
   const prep = await authenticated('/media/upload', getToken, {
     method: 'POST',
     body: JSON.stringify({
@@ -103,6 +192,7 @@ export async function uploadAudio(file: File, getToken: TokenGetter): Promise<st
   if (!upload.ok) throw new Error(`R2への保存に失敗しました（HTTP ${upload.status}）。再試行してください。`);
   await authenticated(`/media/${encodeURIComponent(mediaId)}/complete`, getToken, {
     method: 'POST',
+    body: JSON.stringify({ durationSeconds }),
   });
   return mediaId;
 }
