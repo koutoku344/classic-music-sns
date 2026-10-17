@@ -10,7 +10,18 @@ type Props = {
 
 export default function PostSummary({ post, getToken, onOpen }: Props) {
   return (
-    <article className="bg-white rounded-xl border border-ink-100 p-4 space-y-3">
+    <article
+      role="link" tabIndex={0}
+      aria-label={`投稿を開く：${post.body?.slice(0, 30) || post.piece_title || '添付メディア'}`}
+      onClick={onOpen}
+      onKeyDown={e => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="bg-white rounded-xl border border-ink-100 p-4 space-y-3 cursor-pointer hover:border-teal-300 hover:shadow-sm focus-visible:outline-teal-600"
+    >
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-ink-800">{post.display_name || 'ユーザー'}</p>
         <p className="text-xs text-ink-400">
@@ -23,9 +34,9 @@ export default function PostSummary({ post, getToken, onOpen }: Props) {
         </p>
       )}
       {post.body && <p className="text-sm text-ink-700 whitespace-pre-line">{post.body}</p>}
-      <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
-      <button type="button" onClick={onOpen}
-        className="text-sm text-teal-700 underline">投稿詳細を見る</button>
+      <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
+      </div>
     </article>
   );
 }
