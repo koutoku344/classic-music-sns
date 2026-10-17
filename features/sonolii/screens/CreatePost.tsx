@@ -171,7 +171,7 @@ export default function CreatePost({ navigate, editId }: Props) {
       ) : (
         <div className="bg-white rounded-2xl border border-ink-100 p-5 sm:p-6 space-y-5">
           {loading && <p className="text-sm text-ink-500">読み込み中...</p>}
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error && panel !== 'main' && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
           {panel === 'main' && (
             <>
@@ -216,6 +216,7 @@ export default function CreatePost({ navigate, editId }: Props) {
                   onChange={e => setCommentsEnabled(e.target.checked)}/>
               </label>
               <p className="text-xs text-ink-500">曲を選択した場合のみ音声が必須です。投稿の公開範囲はプロフィール設定に従います。</p>
+              {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
               <button type="button" disabled={busy} onClick={() => void save()}
                 className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-50">
                 {saving ? '保存中...' : editId ? '変更を保存' : '投稿する'}
