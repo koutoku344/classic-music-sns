@@ -154,6 +154,7 @@ export default function Search({ navigate }: SearchProps) {
           <div className="bg-white rounded-2xl border border-ink-100 p-5 mb-5">
             <PiecePicker
               pieces={catalog}
+              defaultLibraryMode="catalog"
               selectedPiece={selectedPiece}
               onSelect={setSelectedPiece}
               label="曲で絞り込む（任意）"
