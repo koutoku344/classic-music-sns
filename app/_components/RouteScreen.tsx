@@ -66,7 +66,10 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   const navigate = (next: ScreenName, params?: Record<string, string>) => {
     const targetId = params?.id ?? "";
     let href = routeMap[next] ?? "/posts";
-    if (next === "postDetail") href = `/posts/${targetId}`;
+    if (next === "postDetail") {
+      href = `/posts/${targetId}`;
+      if (params?.from === "my-page") href += "?from=my-page";
+    }
     if (next === "editPost") href = `/posts/${targetId}/edit`;
     if (next === "practiceDetail") href = `/practice/${targetId}`;
     if (next === "createPractice" && targetId) {
