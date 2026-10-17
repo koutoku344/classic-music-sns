@@ -47,7 +47,7 @@ async function authenticated(
       upload_not_found: 'アップロードしたファイルを確認できません。',
       media_not_available: '音声が見つかりません。',
       unauthorized: '再度ログインしてください。',
-      media_in_use: '練習記録で使用中の音声です。先に練習記録から音声の紐づけを解除してください。',
+      media_in_use: '練習記録または投稿で使用中のメディアです。先に紐づけを解除してください。',
       media_not_restorable: 'この音声は復元できません。',
       delete_first: '先にゴミ箱へ移動してください。',
     };
@@ -171,4 +171,72 @@ export function formatMediaBytes(bytes: number): string {
   return bytes >= 1_000_000_000
     ? `${(bytes / 1_000_000_000).toFixed(2)} GB`
     : `${(bytes / 1_000_000).toFixed(1)} MB`;
+}
+
+const imageTypes: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+
+export async function uploadImage(file: File, getToken: TokenGetter): Promise<string> {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const mimeType = imageTypes[extension];
+  if (!mimeType) {
+    throw new Error('JPEG、PNG、WebP、HEIC、HEIF画像を選択してください。');
+  }
+  if (file.size < 1 || file.size > 10_000_000) {
+    throw new Error('画像ファイルは10MB以下にしてください。');
+  }
+
+  const prep = await authenticated('/media/upload', getToken, {
+    method: 'POST',
+    body: JSON.stringify({
+      mediaType: 'image',
+      mimeType,
+      sizeBytes: file.size,
+    }),
+  });
+  const { mediaId, uploadUrl, headers } = await prep.json() as {
+    mediaId: string;
+    uploadUrl: string;
+    headers: Record<string, string>;
+  };
+
+  let uploaded: Response;
+  try {
+    uploaded = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers,
+      body: file,
+    });
+  } catch {
+    throw new Error('R2への画像アップロードに失敗しました。R2のCORS設定を確認してください。');
+  }
+
+  if (!uploaded.ok) {
+    throw new Error(`R2への画像保存に失敗しました（HTTP ${uploaded.status}）。`);
+  }
+
+  await authenticated(`/media/${encodeURIComponent(mediaId)}/complete`, getToken, {
+    method: 'POST',
+  });
+  return mediaId;
+}
+
+export async function listPastImages(getToken: TokenGetter): Promise<MediaRow[]> {
+  const res = await authenticated('/media?type=image&limit=100', getToken);
+  const data = await res.json() as { media: MediaRow[] };
+  return data.media;
+}
+
+export async function imageReadUrl(id: string, getToken: TokenGetter): Promise<string> {
+  const res = await authenticated(`/media/${encodeURIComponent(id)}/read-url`, getToken, {
+    method: 'POST',
+  });
+  const data = await res.json() as { readUrl: string };
+  return data.readUrl;
 }
