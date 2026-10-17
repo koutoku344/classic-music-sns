@@ -226,17 +226,24 @@ export default function CreatePost({ navigate, editId }: Props) {
 
           {panel === 'audio' && (
             <>
-              <p className="text-sm text-ink-600">録音・ファイル・保存済み音声から選択してください。曲は音声に紐づける場合のみ任意で指定できます。</p>
+              <p className="text-sm text-ink-600">録音・ファイル・保存済み音声から選択してください。曲の指定は任意です。</p>
               <PracticeAudioPicker
                 getToken={getToken} value={audioId} onChange={setAudioId}
                 disabled={saving} onBusyChange={setAudioBusy}
                 contextLabel="投稿"
               />
-              <button type="button" disabled={audioBusy}
-                onClick={() => setPanel('piece')}
-                className="w-full py-3 rounded-xl border border-teal-300 text-teal-700 disabled:opacity-50">
-                {piece ? '演奏した曲を変更' : '演奏した曲を選択（任意）'}
-              </button>
+              <div className="flex items-center justify-between gap-3 border border-ink-200 rounded-xl p-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-ink-500">演奏した曲（任意）</p>
+                  <p className="text-sm text-ink-800 truncate">
+                    {piece ? `${piece.composer} / ${piece.title}` : '未選択'}
+                  </p>
+                </div>
+                <button type="button" disabled={audioBusy} onClick={() => setPanel('piece')}
+                  className="shrink-0 text-sm font-medium text-teal-700 underline disabled:opacity-50">
+                  {piece ? '曲を変更' : '曲を選択'}
+                </button>
+              </div>
               <button type="button" disabled={audioBusy} onClick={() => setPanel('main')}
                 className="w-full py-3 rounded-xl bg-teal-600 text-white disabled:opacity-50">
                 入力画面へ戻る
