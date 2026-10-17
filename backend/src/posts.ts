@@ -90,8 +90,6 @@ function errorMessage(error: unknown): string | null {
   return e.cause && e.cause !== error ? errorMessage(e.cause) : null;
 }
 
-const PROJECTION = "posts are projected directly in each query"; // See SQL below.
-
 export async function handlePosts(
   request: Request,
   sql: Sql,
@@ -166,6 +164,7 @@ export async function handlePosts(
         p.id, p.user_id, p.piece_id, p.user_piece_id,
         p.body, p.comments_enabled, p.feedback_prefs,
         p.created_at, p.updated_at,
+        to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
         pr.display_name,
         COALESCE(c.name, up.composer) AS composer_name,
         COALESCE(pc.title, up.title) AS piece_title,
@@ -212,6 +211,7 @@ export async function handlePosts(
         p.id, p.user_id, p.piece_id, p.user_piece_id,
         p.body, p.comments_enabled, p.feedback_prefs,
         p.created_at, p.updated_at,
+        to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
         pr.display_name,
         COALESCE(c.name, up.composer) AS composer_name,
         COALESCE(pc.title, up.title) AS piece_title,
@@ -241,7 +241,7 @@ export async function handlePosts(
     const visible = rows.slice(0, limit);
     const last = visible[visible.length - 1];
     const nextCursor = rows.length > limit && last
-      ? `${new Date(last.created_at as string).toISOString()}|${last.id}` : null;
+      ? `${String(last.cursor_at)}|${last.id}` : null;
     return reply({ posts: visible, nextCursor }, 200, headers);
   }
 
