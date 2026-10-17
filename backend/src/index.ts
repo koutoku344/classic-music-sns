@@ -1,7 +1,7 @@
 import { verifyToken } from "@clerk/backend";
 import { neon } from "@neondatabase/serverless";
 import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
-import { handlePosts, isPostRoute, isPublicPostRead } from "./posts";
+import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -331,7 +331,8 @@ export default {
     // Public endpoint: a token is optional. Invalid/expired tokens never grant visibility.
     const clerkId = await identity(request, env);
 
-    if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) && !clerkId) {
+    if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
+      !isPostMediaReadUrl(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -348,7 +349,8 @@ export default {
     try {
       // Public post GETs must not upsert a user for anonymous visitors.
       // Authenticated visitors are looked up for owner visibility.
-      if (isPublicPostRead(request.method, url.pathname)) {
+      if (isPublicPostRead(request.method, url.pathname) ||
+          isPostMediaReadUrl(request.method, url.pathname)) {
         let viewerId: string | null = null;
         if (clerkId) {
           const viewers = await sql`
@@ -356,7 +358,7 @@ export default {
           `;
           viewerId = (viewers[0]?.id as string | undefined) ?? null;
         }
-        return await handlePosts(request, sql, viewerId, headers);
+        return await handlePosts(request, sql, env, viewerId, headers);
       }
 
       if (catalogGet) {
@@ -476,7 +478,7 @@ export default {
       }
 
       if (isPostRoute(url.pathname)) {
-        return await handlePosts(request, sql, userId, headers);
+        return await handlePosts(request, sql, env, userId, headers);
       }
 
       // Read with the same projection for GET, POST and PATCH.
