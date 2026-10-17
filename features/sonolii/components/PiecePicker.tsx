@@ -11,6 +11,7 @@ interface PiecePickerProps {
   allowFreeInput?: boolean;
   recentPieces?: Piece[];
   ownedPieces?: SelectablePiece[];
+  defaultLibraryMode?: 'owned' | 'catalog';
 }
 
 type SearchMode = 'composer' | 'title';
@@ -24,10 +25,11 @@ export default function PiecePicker({
   allowFreeInput = true,
   recentPieces = [],
   ownedPieces = [],
+  defaultLibraryMode = 'owned',
 }: PiecePickerProps) {
   const [open, setOpen] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>('composer');
-  const [libraryMode, setLibraryMode] = useState<LibraryMode>('owned');
+  const [libraryMode, setLibraryMode] = useState<LibraryMode>(defaultLibraryMode);
   const [composerQuery, setComposerQuery] = useState('');
   const [selectedComposer, setSelectedComposer] = useState<string | null>(null);
   const [titleQuery, setTitleQuery] = useState('');
