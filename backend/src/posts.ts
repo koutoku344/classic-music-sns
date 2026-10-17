@@ -1,4 +1,5 @@
 import type { NeonQueryFunction } from "@neondatabase/serverless";
+import { signUrl, type MediaEnv } from "./media";
 
 type Sql = NeonQueryFunction<false, false>;
 
@@ -54,10 +55,16 @@ function parseInput(raw: unknown): PostInput | null {
   };
 }
 
+export function isPostMediaReadUrl(method: string, path: string): boolean {
+  return method === "POST"
+    && /^\/posts\/[^/]+\/media\/[^/]+\/read-url$/.test(path);
+}
+
 function isPostPath(path: string): boolean {
   return path === "/posts"
     || /^\/posts\/[^/]+$/.test(path)
-    || /^\/users\/[^/]+\/posts$/.test(path);
+    || /^\/users\/[^/]+\/posts$/.test(path)
+    || /^\/posts\/[^/]+\/media\/[^/]+\/read-url$/.test(path);
 }
 
 export function isPostRoute(path: string): boolean {
@@ -93,6 +100,7 @@ function errorMessage(error: unknown): string | null {
 export async function handlePosts(
   request: Request,
   sql: Sql,
+  env: MediaEnv,
   userId: string | null,
   headers: Record<string, string>
 ): Promise<Response> {
@@ -100,6 +108,33 @@ export async function handlePosts(
   const method = request.method;
   const postMatch = pathname.match(/^\/posts\/([^/]+)$/);
   const ownerMatch = pathname.match(/^\/users\/([^/]+)\/posts$/);
+  const mediaReadMatch = pathname.match(/^\/posts\/([^/]+)\/media\/([^/]+)\/read-url$/);
+
+  if (mediaReadMatch && method === "POST") {
+    const [, postId, mediaId] = mediaReadMatch;
+    if (!UUID.test(postId) || !UUID.test(mediaId)) {
+      return reply({ error: "not_found" }, 404, headers);
+    }
+
+    // Check the *post's* visibility before issuing access to Private R2.
+    // Owner may view; other visitors require a public profile.
+    const rows = await sql`
+      SELECT m.object_key
+      FROM public.posts p
+      JOIN public.profiles pr ON pr.user_id = p.user_id
+      JOIN public.post_media pm ON pm.post_id = p.id
+      JOIN public.media m ON m.id = pm.media_id
+      WHERE p.id = ${postId}::uuid
+        AND pm.media_id = ${mediaId}::uuid
+        AND (pr.visibility = 'public' OR p.user_id = ${userId}::uuid)
+        AND m.upload_status = 'ready'
+        AND m.deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows.length) return reply({ error: "not_found" }, 404, headers);
+    const readUrl = await signUrl(env, rows[0].object_key as string, "GET", 300);
+    return reply({ readUrl, expiresInSeconds: 300 }, 200, headers);
+  }
 
   if (postMatch && !UUID.test(postMatch[1])) return reply({ error: "not_found" }, 404, headers);
   if (ownerMatch && !UUID.test(ownerMatch[1])) return reply({ error: "not_found" }, 404, headers);
