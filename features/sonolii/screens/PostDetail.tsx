@@ -23,6 +23,7 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [audioSeconds, setAudioSeconds] = useState<number | null>(null);
   const [seekSeconds, setSeekSeconds] = useState<number | null>(null);
   const [seekVersion, setSeekVersion] = useState(0);
+  const [timestampRequest, setTimestampRequest] = useState<{ seconds: number; id: number } | null>(null);
   // SSR and the first browser render must agree. Read the URL after hydration.
   const [fromMyPage, setFromMyPage] = useState(false);
 
@@ -129,7 +130,10 @@ export default function PostDetail({ postId, navigate }: Props) {
 
           <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken}
             onAudioTimeChange={setAudioSeconds}
-            seekToSeconds={seekSeconds} seekVersion={seekVersion} />
+            seekToSeconds={seekSeconds} seekVersion={seekVersion}
+            onTimestampComment={post.comments_enabled && myUserId
+              ? seconds => setTimestampRequest(previous => ({ seconds, id: (previous?.id ?? 0) + 1 }))
+              : undefined} />
 
           {post.feedback_prefs?.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -147,6 +151,7 @@ export default function PostDetail({ postId, navigate }: Props) {
             getToken={getToken}
             hasAudio={(post.media ?? []).some(m => m.media_type === 'audio')}
             currentAudioSeconds={audioSeconds}
+            timestampRequest={timestampRequest}
             onSeek={seconds => {
               setSeekSeconds(seconds);
               setSeekVersion(v => v + 1);
