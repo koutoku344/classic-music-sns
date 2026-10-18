@@ -70,7 +70,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
       href = `/posts/${targetId}`;
       const query = new URLSearchParams();
       if (params?.from === "my-page") query.set("from", "my-page");
-      if (params?.commentAt && /^\\d+$/.test(params.commentAt)) {
+      if (params?.commentAt && /^\d+$/.test(params.commentAt)) {
         query.set("commentAt", params.commentAt);
       }
       const queryString = query.toString();
