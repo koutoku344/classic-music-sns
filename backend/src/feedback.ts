@@ -173,7 +173,7 @@ export async function handleFeedback(
           WHERE child.parent_comment_id = c.id AND child.deleted_at IS NULL
         ) AS has_replies
       FROM public.post_comments c
-      JOIN public.profiles pr ON pr.user_id = c.user_id
+      LEFT JOIN public.profiles pr ON pr.user_id = c.user_id
       LEFT JOIN public.post_comments target ON target.id = c.reply_to_comment_id
       LEFT JOIN public.profiles target_profile ON target_profile.user_id = target.user_id
       WHERE c.post_id = ${postId}::uuid
