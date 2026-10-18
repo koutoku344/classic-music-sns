@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MessageSquarePlus } from 'lucide-react';
 import { postMediaReadUrl, type PostMedia } from '../lib/postApi';
 import type { TokenGetter } from '../lib/mediaApi';
 
@@ -10,10 +11,12 @@ type Props = {
   onAudioTimeChange?: (seconds: number | null) => void;
   seekToSeconds?: number | null;
   seekVersion?: number;
+  onTimestampComment?: (seconds: number) => void;
 };
 
 function MediaItem({
   postId, item, getToken, compact, onAudioTimeChange, seekToSeconds, seekVersion,
+  onTimestampComment,
 }: {
   postId: string;
   item: PostMedia;
@@ -22,11 +25,13 @@ function MediaItem({
   onAudioTimeChange?: (seconds: number | null) => void;
   seekToSeconds?: number | null;
   seekVersion?: number;
+  onTimestampComment?: (seconds: number) => void;
 }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioReady, setAudioReady] = useState(false);
 
   useEffect(() => {
     if (item.media_type !== 'audio' || seekToSeconds === null || seekToSeconds === undefined) return;
@@ -42,6 +47,7 @@ function MediaItem({
     let active = true;
     setUrl('');
     setError('');
+    setAudioReady(false);
     void postMediaReadUrl(postId, item.id, getToken)
       .then(value => { if (active) setUrl(value); })
       .catch(e => {
@@ -70,7 +76,10 @@ function MediaItem({
         <audio
           ref={audioRef}
           onTimeUpdate={event => onAudioTimeChange?.(event.currentTarget.currentTime)}
-          onLoadedMetadata={event => onAudioTimeChange?.(event.currentTarget.currentTime)}
+          onLoadedMetadata={event => {
+            setAudioReady(true);
+            onAudioTimeChange?.(event.currentTarget.currentTime);
+          }}
           controls
           controlsList="nodownload"
           preload="metadata"
@@ -78,8 +87,31 @@ function MediaItem({
           className="w-full"
           onError={() => setError('音声の再生に失敗しました。期限切れの場合は再取得してください。')}
         />
-        <button type="button" className="text-xs text-teal-700 underline"
-          onClick={() => setRetry(v => v + 1)}>再生URLを再取得</button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button type="button" className="text-xs text-teal-700 underline"
+            onClick={() => setRetry(v => v + 1)}>再生URLを再取得</button>
+          {!compact && onTimestampComment && (
+            <button type="button"
+              disabled={!audioReady}
+              onClick={() => {
+                const audio = audioRef.current;
+                if (!audio || !Number.isFinite(audio.currentTime)) return;
+                // Stored durations use whole seconds; stay within the Backend's range.
+                const duration = item.duration_seconds;
+                const seconds = Math.max(
+                  0,
+                  duration !== null && duration > 0
+                    ? Math.min(Math.floor(audio.currentTime), duration - 1)
+                    : Math.floor(audio.currentTime),
+                );
+                onTimestampComment(seconds);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-teal-200 bg-teal-50 text-teal-800 text-sm font-medium hover:bg-teal-100 disabled:opacity-40">
+              <MessageSquarePlus size={16} />
+              この位置にコメント
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -96,7 +128,7 @@ function MediaItem({
 
 export default function PostMediaView({
   postId, media, getToken, compact = false,
-  onAudioTimeChange, seekToSeconds, seekVersion,
+  onAudioTimeChange, seekToSeconds, seekVersion, onTimestampComment,
 }: Props) {
   const audio = media.find(m => m.media_type === 'audio');
   const images = media.filter(m => m.media_type === 'image')
@@ -115,7 +147,8 @@ export default function PostMediaView({
         </div>
       ))}
       {audio && <MediaItem postId={postId} item={audio} getToken={getToken} compact={compact}
-        onAudioTimeChange={onAudioTimeChange} seekToSeconds={seekToSeconds} seekVersion={seekVersion} />}
+        onAudioTimeChange={onAudioTimeChange} seekToSeconds={seekToSeconds} seekVersion={seekVersion}
+        onTimestampComment={onTimestampComment} />}
     </div>
   );
 }
