@@ -388,7 +388,8 @@ export default function MyPage({ navigate }: MyPageProps) {
         {showPosts && myPosts.map(post => (
           <div key={post.id} className="col-span-2">
             <PostSummary post={post} getToken={getToken}
-              onOpen={() => navigate('postDetail', { id: post.id, from: 'my-page' })} />
+              onOpen={() => navigate('postDetail', { id: post.id, from: 'my-page' })}
+              onOpenTimestamp={seconds => navigate('postDetail', { id: post.id, from: 'my-page', commentAt: String(seconds) })} />
           </div>
         ))}
         {showPosts && postsCursor && (
