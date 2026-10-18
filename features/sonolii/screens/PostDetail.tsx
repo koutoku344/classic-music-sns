@@ -28,7 +28,18 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [fromMyPage, setFromMyPage] = useState(false);
 
   useEffect(() => {
-    setFromMyPage(new URLSearchParams(window.location.search).get('from') === 'my-page');
+    const params = new URLSearchParams(window.location.search);
+    setFromMyPage(params.get('from') === 'my-page');
+    const commentAt = params.get('commentAt');
+    if (commentAt !== null && /^\d+$/.test(commentAt)) {
+      const seconds = Number(commentAt);
+      if (Number.isSafeInteger(seconds) && seconds >= 0 && seconds <= 86400) {
+        setTimestampRequest(previous => ({
+          seconds,
+          id: (previous?.id ?? 0) + 1,
+        }));
+      }
+    }
   }, [postId]);
 
   useEffect(() => {
@@ -53,12 +64,15 @@ export default function PostDetail({ postId, navigate }: Props) {
       try {
         const token = await getToken();
         if (!token) return;
-        const res = await fetch(`${API_BASE}/me/profile`, {
+        // Sync returns the account UUID even when a new account has no profile yet.
+        // The Backend also initializes a default profile for new users.
+        const res = await fetch(`${API_BASE}/users/sync`, {
+          method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
-        const data = await res.json() as { profile: { user_id: string } | null };
-        if (active) setMyUserId(data.profile?.user_id ?? null);
+        const data = await res.json() as { user: { id: string } | null };
+        if (active) setMyUserId(data.user?.id ?? null);
       } catch {
         if (active) setMyUserId(null);
       }
