@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { postMediaReadUrl, type PostMedia } from '../lib/postApi';
 import type { TokenGetter } from '../lib/mediaApi';
 
@@ -7,19 +7,36 @@ type Props = {
   media: PostMedia[];
   getToken: TokenGetter;
   compact?: boolean;
+  onAudioTimeChange?: (seconds: number | null) => void;
+  seekToSeconds?: number | null;
+  seekVersion?: number;
 };
 
 function MediaItem({
-  postId, item, getToken, compact,
+  postId, item, getToken, compact, onAudioTimeChange, seekToSeconds, seekVersion,
 }: {
   postId: string;
   item: PostMedia;
   getToken: TokenGetter;
   compact: boolean;
+  onAudioTimeChange?: (seconds: number | null) => void;
+  seekToSeconds?: number | null;
+  seekVersion?: number;
 }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (item.media_type !== 'audio' || seekToSeconds === null || seekToSeconds === undefined) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    const seek = () => { audio.currentTime = seekToSeconds; };
+    if (audio.readyState >= 1) seek();
+    else audio.addEventListener('loadedmetadata', seek, { once: true });
+    return () => audio.removeEventListener('loadedmetadata', seek);
+  }, [item.media_type, seekToSeconds, seekVersion, url]);
 
   useEffect(() => {
     let active = true;
@@ -51,6 +68,9 @@ function MediaItem({
     return (
       <div className="space-y-1">
         <audio
+          ref={audioRef}
+          onTimeUpdate={event => onAudioTimeChange?.(event.currentTarget.currentTime)}
+          onLoadedMetadata={event => onAudioTimeChange?.(event.currentTarget.currentTime)}
           controls
           controlsList="nodownload"
           preload="metadata"
@@ -74,7 +94,10 @@ function MediaItem({
   );
 }
 
-export default function PostMediaView({ postId, media, getToken, compact = false }: Props) {
+export default function PostMediaView({
+  postId, media, getToken, compact = false,
+  onAudioTimeChange, seekToSeconds, seekVersion,
+}: Props) {
   const audio = media.find(m => m.media_type === 'audio');
   const images = media.filter(m => m.media_type === 'image')
     .sort((a, b) => a.display_order - b.display_order);
@@ -91,7 +114,8 @@ export default function PostMediaView({ postId, media, getToken, compact = false
           )}
         </div>
       ))}
-      {audio && <MediaItem postId={postId} item={audio} getToken={getToken} compact={compact} />}
+      {audio && <MediaItem postId={postId} item={audio} getToken={getToken} compact={compact}
+        onAudioTimeChange={onAudioTimeChange} seekToSeconds={seekToSeconds} seekVersion={seekVersion} />}
     </div>
   );
 }
