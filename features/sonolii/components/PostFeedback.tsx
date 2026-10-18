@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Heart, MessageCircle, Trash2, Reply, Clock3 } from 'lucide-react';
 import type { TokenGetter } from '../lib/mediaApi';
 import {
@@ -16,6 +16,7 @@ type Props = {
   hasAudio: boolean;
   currentAudioSeconds: number | null;
   onSeek: (seconds: number) => void;
+  timestampRequest?: { seconds: number; id: number } | null;
 };
 
 function formatTime(seconds: number): string {
@@ -29,7 +30,7 @@ function formatTime(seconds: number): string {
 
 export default function PostFeedback({
   postId, commentsEnabled, myUserId, ownerId, getToken, hasAudio,
-  currentAudioSeconds, onSeek,
+  currentAudioSeconds, onSeek, timestampRequest,
 }: Props) {
   const [roots, setRoots] = useState<FeedbackComment[]>([]);
   const [rootCursor, setRootCursor] = useState<string | null>(null);
@@ -43,6 +44,15 @@ export default function PostFeedback({
   const [timestamp, setTimestamp] = useState<number | null>(null);
   const [replyTarget, setReplyTarget] = useState<{ id: string; name: string; root: string } | null>(null);
   const [error, setError] = useState('');
+  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (!timestampRequest || !commentsEnabled || !myUserId || !hasAudio) return;
+    setReplyTarget(null);
+    setTimestamp(timestampRequest.seconds);
+    commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    commentInputRef.current?.focus({ preventScroll: true });
+  }, [timestampRequest, commentsEnabled, myUserId, hasAudio]);
 
   const loadRoots = useCallback(async (cursor: string | null = null) => {
     const page = await listPostComments(postId, getToken, cursor);
@@ -280,7 +290,7 @@ export default function PostFeedback({
                 className="text-teal-700">返信をやめる</button>
             </div>
           )}
-          <textarea aria-label="コメント本文" value={body}
+          <textarea ref={commentInputRef} aria-label="コメント本文" value={body}
             onChange={event => setBody(event.target.value)}
             maxLength={1000} rows={3}
             placeholder={myUserId ? '演奏の感想やアドバイスを入力...' : 'コメントするにはログインしてください'}
