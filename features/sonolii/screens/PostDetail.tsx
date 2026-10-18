@@ -5,6 +5,7 @@ import type { ScreenName } from '../types';
 import { getPost, deletePost, type PostRow } from '../lib/postApi';
 import { API_BASE } from '../lib/repertoireApi';
 import PostMediaView from '../components/PostMediaView';
+import PostFeedback from '../components/PostFeedback';
 
 type Props = {
   postId: string;
@@ -19,6 +20,9 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [audioSeconds, setAudioSeconds] = useState<number | null>(null);
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null);
+  const [seekVersion, setSeekVersion] = useState(0);
   // SSR and the first browser render must agree. Read the URL after hydration.
   const [fromMyPage, setFromMyPage] = useState(false);
 
@@ -123,7 +127,9 @@ export default function PostDetail({ postId, navigate }: Props) {
 
           {post.body && <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{post.body}</p>}
 
-          <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} />
+          <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken}
+            onAudioTimeChange={setAudioSeconds}
+            seekToSeconds={seekSeconds} seekVersion={seekVersion} />
 
           {post.feedback_prefs?.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -133,9 +139,19 @@ export default function PostDetail({ postId, navigate }: Props) {
             </div>
           )}
 
-          <p className="border-t border-ink-100 pt-4 text-xs text-ink-500">
-            コメント・いいね・タイムスタンプコメントは後続STEPで実装予定です。
-          </p>
+          <PostFeedback
+            postId={post.id}
+            commentsEnabled={post.comments_enabled}
+            myUserId={myUserId}
+            ownerId={post.user_id}
+            getToken={getToken}
+            hasAudio={(post.media ?? []).some(m => m.media_type === 'audio')}
+            currentAudioSeconds={audioSeconds}
+            onSeek={seconds => {
+              setSeekSeconds(seconds);
+              setSeekVersion(v => v + 1);
+            }}
+          />
         </article>
       )}
     </div>
