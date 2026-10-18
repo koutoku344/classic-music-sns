@@ -90,7 +90,7 @@ function MediaItem({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button type="button" className="text-xs text-teal-700 underline"
             onClick={() => setRetry(v => v + 1)}>再生URLを再取得</button>
-          {!compact && onTimestampComment && (
+          {onTimestampComment && (
             <button type="button"
               disabled={!audioReady}
               onClick={() => {
