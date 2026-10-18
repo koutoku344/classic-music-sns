@@ -134,7 +134,10 @@ export default function Community({ navigate }: CommunityProps) {
             )}
             {post.body && <p className="text-sm text-ink-700 whitespace-pre-line">{post.body}</p>}
             <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-              <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
+              <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact
+                onTimestampComment={post.comments_enabled
+                  ? seconds => navigate('postDetail', { id: post.id, commentAt: String(seconds) })
+                  : undefined} />
             </div>
             {post.feedback_prefs?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
