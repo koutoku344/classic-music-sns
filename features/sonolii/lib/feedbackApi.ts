@@ -62,6 +62,7 @@ async function feedbackRequest(
 
     const messages: Record<string, string> = {
       unauthorized: 'ログインが必要です。',
+      profile_required: 'いいね・コメントするにはプロフィールの表示名を設定してください。',
       post_not_found: '投稿が見つからないか、閲覧できません。',
       comment_not_found: 'コメントが存在しないか、操作できません。',
       comments_disabled: 'この投稿ではコメントを受け付けていません。',
