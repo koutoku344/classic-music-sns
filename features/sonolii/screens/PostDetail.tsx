@@ -18,6 +18,7 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [audioSeconds, setAudioSeconds] = useState<number | null>(null);
@@ -64,8 +65,7 @@ export default function PostDetail({ postId, navigate }: Props) {
       try {
         const token = await getToken();
         if (!token) return;
-        // Sync returns the account UUID even when a new account has no profile yet.
-        // The Backend also initializes a default profile for new users.
+        // Only sync the Sonolii user ID. Profile creation is explicit.
         const res = await fetch(`${API_BASE}/users/sync`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -73,6 +73,18 @@ export default function PostDetail({ postId, navigate }: Props) {
         if (!res.ok) return;
         const data = await res.json() as { user: { id: string } | null };
         if (active) setMyUserId(data.user?.id ?? null);
+
+        const profileRes = await fetch(`${API_BASE}/me/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json() as {
+            profile: { display_name: string } | null
+          };
+          if (active) setProfileReady(
+            !!profileData.profile?.display_name?.trim()
+          );
+        }
       } catch {
         if (active) setMyUserId(null);
       }
@@ -145,7 +157,7 @@ export default function PostDetail({ postId, navigate }: Props) {
           <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken}
             onAudioTimeChange={setAudioSeconds}
             seekToSeconds={seekSeconds} seekVersion={seekVersion}
-            onTimestampComment={post.comments_enabled && myUserId
+            onTimestampComment={post.comments_enabled
               ? seconds => setTimestampRequest(previous => ({ seconds, id: (previous?.id ?? 0) + 1 }))
               : undefined} />
 
@@ -161,6 +173,8 @@ export default function PostDetail({ postId, navigate }: Props) {
             postId={post.id}
             commentsEnabled={post.comments_enabled}
             myUserId={myUserId}
+            profileReady={profileReady}
+            onCreateProfile={() => navigate('accountSettings')}
             ownerId={post.user_id}
             getToken={getToken}
             hasAudio={(post.media ?? []).some(m => m.media_type === 'audio')}
