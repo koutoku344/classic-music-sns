@@ -10,9 +10,21 @@
     }
   ],
   "triggers": {
-    "crons": ["0 3 * * *"]
+    "crons": [
+      "0 3 * * *"
+    ]
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "ratelimits": [
+    {
+      "name": "FEEDBACK_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ]
 }

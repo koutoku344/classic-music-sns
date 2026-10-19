@@ -68,7 +68,13 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     let href = routeMap[next] ?? "/posts";
     if (next === "postDetail") {
       href = `/posts/${targetId}`;
-      if (params?.from === "my-page") href += "?from=my-page";
+      const query = new URLSearchParams();
+      if (params?.from === "my-page") query.set("from", "my-page");
+      if (params?.commentAt && /^\d+$/.test(params.commentAt)) {
+        query.set("commentAt", params.commentAt);
+      }
+      const queryString = query.toString();
+      if (queryString) href += `?${queryString}`;
     }
     if (next === "editPost") href = `/posts/${targetId}/edit`;
     if (next === "practiceDetail") href = `/practice/${targetId}`;

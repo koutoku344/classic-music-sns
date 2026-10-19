@@ -19,6 +19,12 @@ const BUCKET = "sonolii-media";
 const FREE_QUOTA = 3_000_000_000;
 const MAX_AUDIO = 200_000_000;
 const MAX_IMAGE = 10_000_000;
+const MAX_DURATION_SECONDS = 86400;
+
+function validDuration(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) &&
+    value >= 1 && value <= MAX_DURATION_SECONDS;
+}
 const MIME: Record<string, "audio" | "image"> = {
   "audio/mpeg": "audio",
   "audio/mp4": "audio",
@@ -242,7 +248,7 @@ export async function handleMedia(
     return response({ media: rows }, 200, headers);
   }
 
-  const match = path.match(/^\/media\/([0-9a-f-]{36})(?:\/(complete|read-url|restore|permanent))?$/i);
+  const match = path.match(/^\/media\/([0-9a-f-]{36})(?:\/(complete|duration|read-url|restore|permanent))?$/i);
   if (!match || !uuid(match[1])) return response({ error: "not_found" }, 404, headers);
   const id = match[1];
   const action = match[2] ?? "";
@@ -257,8 +263,41 @@ export async function handleMedia(
   const key = media.object_key as string;
 
   if (action === "complete" && method === "POST") {
+    // STEP8 image clients sent an empty completion body: keep that compatible.
+    const rawBody = await request.text();
+    if (rawBody.length > 8192) return response({ error: "invalid_duration" }, 400, headers);
+    let input: Record<string, unknown>;
+    try {
+      const decoded: unknown = rawBody ? JSON.parse(rawBody) : {};
+      if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+        return response({ error: "invalid_duration" }, 400, headers);
+      }
+      input = decoded as Record<string, unknown>;
+    } catch {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
+    if (Object.keys(input).some(k => k !== "durationSeconds")) {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
+    const duration = input.durationSeconds;
+    if (media.media_type === "audio" && !validDuration(duration)) {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
+    if (media.media_type === "image" && duration !== undefined) {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
     if (media.upload_status === "ready" && !media.deleted_at) {
-      return response({ media }, 200, headers);
+      // Retry after a connection failure. Only fill a missing duration.
+      if (media.media_type === "audio") {
+        await sql`
+          UPDATE public.media
+          SET duration_seconds = ${duration}::integer, updated_at = now()
+          WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+            AND upload_status = 'ready' AND deleted_at IS NULL
+            AND media_type = 'audio' AND duration_seconds IS NULL
+        `;
+      }
+      return response({ media: { ...media, duration_seconds: duration } }, 200, headers);
     }
     if (media.upload_status !== "pending") {
       return response({ error: "media_not_pending" }, 409, headers);
@@ -267,16 +306,45 @@ export async function handleMedia(
     if (!object) return response({ error: "upload_not_found" }, 409, headers);
     if (object.size !== Number(media.size_bytes) ||
       (object.httpMetadata?.contentType && object.httpMetadata.contentType !== media.mime_type)) {
-      // Leave the reservation in place pending cleanup, to avoid freeing a quota
-      // slot while a client still holds a usable signed upload URL.
       return response({ error: "upload_metadata_mismatch" }, 409, headers);
     }
     const rows = await sql`
-      UPDATE public.media SET upload_status = 'ready', updated_at = now()
-      WHERE id = ${id}::uuid AND user_id = ${userId}::uuid AND upload_status = 'pending'
-      RETURNING id, media_type, mime_type, size_bytes::float8 AS size_bytes
+      UPDATE public.media
+      SET upload_status = 'ready',
+          duration_seconds = ${media.media_type === "audio" ? duration : null}::integer,
+          updated_at = now()
+      WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+        AND upload_status = 'pending'
+      RETURNING id, media_type, mime_type, size_bytes::float8 AS size_bytes, duration_seconds
     `;
     return response({ media: rows[0] ?? media }, 200, headers);
+  }
+
+  // Safe backfill for existing uploaded audio; no R2 overwrite and no other columns changed.
+  if (action === "duration" && method === "PATCH") {
+    const input = await readInput(request);
+    if (!input || Object.keys(input).length !== 1 ||
+        !validDuration(input.durationSeconds)) {
+      return response({ error: "invalid_duration" }, 400, headers);
+    }
+    if (media.media_type !== "audio" ||
+        media.upload_status !== "ready" || media.deleted_at) {
+      return response({ error: "media_not_available" }, 404, headers);
+    }
+    const rows = await sql`
+      UPDATE public.media
+      SET duration_seconds = ${input.durationSeconds}::integer, updated_at = now()
+      WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+        AND media_type = 'audio' AND upload_status = 'ready'
+        AND deleted_at IS NULL AND duration_seconds IS NULL
+      RETURNING duration_seconds
+    `;
+    if (rows.length) return response({ durationSeconds: rows[0].duration_seconds }, 200, headers);
+    const current = await sql`
+      SELECT duration_seconds FROM public.media
+      WHERE id = ${id}::uuid AND user_id = ${userId}::uuid
+    `;
+    return response({ durationSeconds: current[0]?.duration_seconds ?? null }, 200, headers);
   }
 
   if (action === "read-url" && method === "POST") {

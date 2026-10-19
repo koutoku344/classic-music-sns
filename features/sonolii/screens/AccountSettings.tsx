@@ -63,6 +63,10 @@ export default function AccountSettings({ navigate }: AccountSettingsProps) {
 
   async function saveProfile() {
     if (!isSignedIn || loading || saving) return;
+    if (!displayName.trim()) {
+      setError('表示名を入力してください。');
+      return;
+    }
     setSaving(true); setError(''); setNotice('');
     try {
       const token = await getToken();

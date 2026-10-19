@@ -2,10 +2,14 @@ import { verifyToken } from "@clerk/backend";
 import { neon } from "@neondatabase/serverless";
 import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
 import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
+import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
   CLERK_JWT_KEY: string;
+  FEEDBACK_RATE_LIMIT: {
+    limit: (input: { key: string }) => Promise<{ success: boolean }>;
+  };
 }
 
 const allowedOrigins = [
@@ -58,7 +62,7 @@ function cors(request: Request): Record<string, string> {
 
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     Vary: "Origin",
   };
@@ -324,7 +328,7 @@ export default {
       catalogGet || repList || repCreate || repUpdate || repDelete ||
       userPiecesList || userPiecesCreate || userPiecesPatch ||
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
-      isMediaRoute(url.pathname) || isPostRoute(url.pathname))) {
+      isMediaRoute(url.pathname) || isPostRoute(url.pathname) || isFeedbackRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -332,7 +336,8 @@ export default {
     const clerkId = await identity(request, env);
 
     if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
-      !isPostMediaReadUrl(request.method, url.pathname) && !clerkId) {
+      !isPostMediaReadUrl(request.method, url.pathname) &&
+      !isPublicFeedbackRead(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -350,7 +355,8 @@ export default {
       // Public post GETs must not upsert a user for anonymous visitors.
       // Authenticated visitors are looked up for owner visibility.
       if (isPublicPostRead(request.method, url.pathname) ||
-          isPostMediaReadUrl(request.method, url.pathname)) {
+          isPostMediaReadUrl(request.method, url.pathname) ||
+          isPublicFeedbackRead(request.method, url.pathname)) {
         let viewerId: string | null = null;
         if (clerkId) {
           const viewers = await sql`
@@ -358,7 +364,9 @@ export default {
           `;
           viewerId = (viewers[0]?.id as string | undefined) ?? null;
         }
-        return await handlePosts(request, sql, env, viewerId, headers);
+        return isFeedbackRoute(url.pathname)
+          ? await handleFeedback(request, sql, viewerId, headers)
+          : await handlePosts(request, sql, env, viewerId, headers);
       }
 
       if (catalogGet) {
@@ -475,6 +483,24 @@ export default {
 
       if (isMediaRoute(url.pathname)) {
         return await handleMedia(request, env, sql, userId, headers);
+      }
+
+      if (isFeedbackRoute(url.pathname)) {
+        // Apply one shared quota per authenticated user to comment and like writes.
+        // GET requests remain public and are not counted.
+        if (request.method !== "GET") {
+          const result = await env.FEEDBACK_RATE_LIMIT.limit({
+            key: `feedback:${userId}`,
+          });
+          if (!result.success) {
+            return reply(
+              { error: "rate_limited" },
+              429,
+              { ...headers, "Retry-After": "60" }
+            );
+          }
+        }
+        return await handleFeedback(request, sql, userId, headers);
       }
 
       if (isPostRoute(url.pathname)) {

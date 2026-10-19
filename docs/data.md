@@ -518,3 +518,19 @@ Pieceについては他データから参照されるため、重複・修正時
 ### STEP8追加マイグレーション010
 
 `db/migrations/010_reserve_media_upload.sql` は、ユーザー行を `FOR UPDATE` でロックしてストレージ上限（予約済みpendingを含む）と1分あたり10件のアップロード許可を原子的に判定するDB関数を作成する。009適用後、メディアアップロードAPIをデプロイする前に010を適用する。010は新たなメディアテーブルを作成せず既存データを削除しない。現段階のAPIはFreeプラン相当の3GB制限で実装し、Premium契約と20GB制限の実運用連動は課金機能実装時に必須対応とする。
+
+---
+
+## STEP10確定データモデル（Migration 016〜018）
+
+本節は既存の「4.9 Comment / Like」概念案より優先する。実体は`public.post_comments`、`public.post_likes`、`public.post_comment_likes`。別のComment階層テーブルを増やさない。
+
+- `post_comments`：`post_id`、`user_id`、`parent_comment_id`（ルート親ID、親ならNULL）、`reply_to_comment_id`（返信した相手）、`body`、`audio_timestamp_seconds`、`deleted_at`、作成日時等。
+- 親コメント：`parent_comment_id=NULL`。返信への返信も同じルート直下に格納し、画面表示は1階層。`reply_to_comment_id`が返信相手を示す。
+- 時刻指定は親コメントに限り、音声がreadyで`media.duration_seconds`を確認できることが条件。原音声はR2に保持する。
+- コメント論理削除：`body=NULL`、`audio_timestamp_seconds=NULL`、`deleted_at`に日時を記録。返信を保持し、残存返信のない削除済み親は一覧から隠す。既存のコメント削除操作と投稿削除は別の処理。
+- `post_likes`は投稿×ユーザー、`post_comment_likes`はコメント×ユーザーをユニークに管理。重複PUTでも二重登録しない。
+- DB整合性はFK、INDEXおよび`create_post_comment`、`delete_post_comment`、`set_post_like`、`set_post_comment_like`関数（016〜018）で担保。ロック・検証の実装詳細はSQLを正とする。
+- `profiles`は`users`と別レコード。ユーザー同期だけでは自動作成せず、プロフィール保存（PATCH）時に作成・更新。表示名のtrim後非空をSTEP10の交流操作許可条件とする。過去の空プロフィールを一括削除しない。
+
+詳しくは [STEP10-2 DB設計](step10-2-db-design.md) と [STEP10完了判定](step10-6-closure.md)。

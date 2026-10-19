@@ -150,7 +150,8 @@ export default function UserProfile({
           )}
           {posts.map(post => (
             <PostSummary key={post.id} post={post} getToken={getToken}
-              onOpen={() => navigate('postDetail', { id: post.id })}/>
+              onOpen={() => navigate('postDetail', { id: post.id })}
+              onOpenTimestamp={seconds => navigate('postDetail', { id: post.id, commentAt: String(seconds) })}/>
           ))}
           {postsCursor && (
             <button type="button" onClick={() => void loadMore()} disabled={moreBusy}

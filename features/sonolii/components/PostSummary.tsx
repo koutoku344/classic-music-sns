@@ -6,9 +6,10 @@ type Props = {
   post: PostRow;
   getToken: TokenGetter;
   onOpen: () => void;
+  onOpenTimestamp?: (seconds: number) => void;
 };
 
-export default function PostSummary({ post, getToken, onOpen }: Props) {
+export default function PostSummary({ post, getToken, onOpen, onOpenTimestamp }: Props) {
   return (
     <article
       role="link" tabIndex={0}
@@ -35,7 +36,8 @@ export default function PostSummary({ post, getToken, onOpen }: Props) {
       )}
       {post.body && <p className="text-sm text-ink-700 whitespace-pre-line">{post.body}</p>}
       <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-        <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact />
+        <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} compact
+          onTimestampComment={post.comments_enabled ? onOpenTimestamp : undefined} />
       </div>
     </article>
   );

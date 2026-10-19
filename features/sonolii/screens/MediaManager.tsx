@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import {
   listMedia, listDeletedMedia, getMediaUsage, trashMedia, restoreMedia,
-  permanentlyDeleteMedia, audioReadUrl, formatMediaBytes,
+  permanentlyDeleteMedia, audioReadUrl, formatMediaBytes, backfillMissingAudioDurations,
 } from '../lib/mediaApi';
 import type { MediaRow, DeletedMediaRow, MediaUsage } from '../lib/mediaApi';
 import type { ScreenName } from '../types';
@@ -25,6 +25,8 @@ export default function MediaManager({ navigate }: Props) {
   const [error, setError] = useState('');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [readUrl, setReadUrl] = useState('');
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStatus, setBackfillStatus] = useState('');
 
   const refresh = useCallback(async (pageToLoad: number, showDeleted: boolean) => {
     if (!isSignedIn) {
@@ -59,6 +61,26 @@ export default function MediaManager({ navigate }: Props) {
     if (!isLoaded) return;
     void refresh(page, view === 'trash');
   }, [isLoaded, page, view, refresh]);
+
+  async function fillDurations() {
+    if (backfilling) return;
+    setBackfilling(true);
+    setError('');
+    setBackfillStatus('音声の再生時間を確認しています...');
+    try {
+      const result = await backfillMissingAudioDurations(getToken, (done, total) => {
+        setBackfillStatus(`再生時間を確認中：${done}/${total} 件`);
+      });
+      setBackfillStatus(
+        `補完完了：${result.updated}件更新、${result.failed}件失敗（対象${result.total}件）`
+      );
+      await refresh(page, false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '再生時間を補完できませんでした。');
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   const used = usage
     ? usage.active_bytes + usage.deleted_bytes + usage.pending_bytes
@@ -157,6 +179,23 @@ export default function MediaManager({ navigate }: Props) {
       </div>
 
       {!isSignedIn && isLoaded && <p className="text-sm text-ink-500">利用するにはログインしてください。</p>}
+      {view === 'saved' && isSignedIn && (
+        <div className="mb-4 rounded-xl border border-ink-200 bg-white p-4">
+          <p className="text-sm text-ink-700 mb-2">
+            過去に保存した音声の再生時間が未登録の場合、音声ファイルは変更せず再生時間だけを補完できます。
+          </p>
+          <button
+            type="button"
+            disabled={backfilling || loading || acting !== null}
+            onClick={() => void fillDurations()}
+            className="text-sm px-4 py-2 rounded-lg bg-teal-600 text-white disabled:opacity-50"
+          >
+            {backfilling ? '確認中...' : '未登録の音声時間を補完'}
+          </button>
+          {backfillStatus && <p role="status" className="text-xs text-ink-600 mt-2">{backfillStatus}</p>}
+        </div>
+      )}
+
       {loading && <p role="status" className="text-sm text-ink-500">読み込み中...</p>}
       {error && <p role="alert" className="text-sm text-red-600 mb-4">{error}</p>}
       {!loading && isSignedIn && (view === 'saved' ? saved : deleted).length === 0 &&

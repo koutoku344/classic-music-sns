@@ -542,3 +542,14 @@ R2 Compressed Video
 - 音声の再生速度はブラウザ処理。ブラウザへの`nodownload`指定は操作項目を隠すだけで、ファイル取得をセキュリティ上禁止する機能ではない。
 
 STEP9の実施結果とリリース前の未検証事項は [STEP9-9 完了判定](step9-9-closure.md) に記録する。
+
+---
+
+## STEP10 コメント・いいねアーキテクチャ（2026-10-19）
+
+- Frontend：投稿詳細`PostDetail`に`PostFeedback`を統合。コミュニティ／マイページ／他ユーザープロフィールの投稿一覧では音声プレイヤー横の「この位置にコメント」から`commentAt`クエリで詳細入力欄へ遷移。入力途中の位置はブラウザ側状態で保持。
+- Backend：`backend/src/feedback.ts`がコメント一覧、親への返信、投稿・コメント／返信いいね、論理削除のルートを扱う。ユーザー識別はClerk JWTとNeonの`users`のUUID。プロフィールDBの有無をログイン判定に流用しない。
+- Database：Neon `post_comments`、`post_likes`、`post_comment_likes`とDB関数（016〜018）で整合性を確保し、投稿公開範囲は従来の`profiles.visibility`を継続利用。フィードバックでR2オブジェクトは増やさない。
+- プロフィール未設定時：閲覧を妨げず、初回コメント・返信・いいね時に設定案内（「あとで」あり）。設定には`PATCH /me/profile`による表示名の保存が必要。`POST /users/sync`は`users` ID同期のみで、プロフィールは自動作成しない。Backend／DB側も新規書込みを拒否。
+- Abuse制御：Cloudflare Workers Rate Limiting bindingにより認証済みユーザー単位で書込み30回/60秒。参照GETは対象外。429＋`Retry-After: 60`を返す。
+- スコープ外：通知、フォロー、他アカウントへのメンション通知、動画変換、全リージョンでの厳密なRate Limit保証。リリース前の残項目は [STEP10完了判定](step10-6-closure.md) を参照。

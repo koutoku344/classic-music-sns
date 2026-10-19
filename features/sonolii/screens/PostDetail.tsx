@@ -5,6 +5,7 @@ import type { ScreenName } from '../types';
 import { getPost, deletePost, type PostRow } from '../lib/postApi';
 import { API_BASE } from '../lib/repertoireApi';
 import PostMediaView from '../components/PostMediaView';
+import PostFeedback from '../components/PostFeedback';
 
 type Props = {
   postId: string;
@@ -17,10 +18,30 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const fromMyPage = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('from') === 'my-page';
+  const [audioSeconds, setAudioSeconds] = useState<number | null>(null);
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null);
+  const [seekVersion, setSeekVersion] = useState(0);
+  const [timestampRequest, setTimestampRequest] = useState<{ seconds: number; id: number } | null>(null);
+  // SSR and the first browser render must agree. Read the URL after hydration.
+  const [fromMyPage, setFromMyPage] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setFromMyPage(params.get('from') === 'my-page');
+    const commentAt = params.get('commentAt');
+    if (commentAt !== null && /^\d+$/.test(commentAt)) {
+      const seconds = Number(commentAt);
+      if (Number.isSafeInteger(seconds) && seconds >= 0 && seconds <= 86400) {
+        setTimestampRequest(previous => ({
+          seconds,
+          id: (previous?.id ?? 0) + 1,
+        }));
+      }
+    }
+  }, [postId]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -44,12 +65,26 @@ export default function PostDetail({ postId, navigate }: Props) {
       try {
         const token = await getToken();
         if (!token) return;
-        const res = await fetch(`${API_BASE}/me/profile`, {
+        // Only sync the Sonolii user ID. Profile creation is explicit.
+        const res = await fetch(`${API_BASE}/users/sync`, {
+          method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
-        const data = await res.json() as { profile: { user_id: string } | null };
-        if (active) setMyUserId(data.profile?.user_id ?? null);
+        const data = await res.json() as { user: { id: string } | null };
+        if (active) setMyUserId(data.user?.id ?? null);
+
+        const profileRes = await fetch(`${API_BASE}/me/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json() as {
+            profile: { display_name: string } | null
+          };
+          if (active) setProfileReady(
+            !!profileData.profile?.display_name?.trim()
+          );
+        }
       } catch {
         if (active) setMyUserId(null);
       }
@@ -73,7 +108,7 @@ export default function PostDetail({ postId, navigate }: Props) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => navigate('community')}
+      <button onClick={() => navigate(fromMyPage ? 'myPage' : 'community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
         <ArrowLeft size={18}/> {fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
@@ -119,7 +154,12 @@ export default function PostDetail({ postId, navigate }: Props) {
 
           {post.body && <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{post.body}</p>}
 
-          <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken} />
+          <PostMediaView postId={post.id} media={post.media ?? []} getToken={getToken}
+            onAudioTimeChange={setAudioSeconds}
+            seekToSeconds={seekSeconds} seekVersion={seekVersion}
+            onTimestampComment={post.comments_enabled
+              ? seconds => setTimestampRequest(previous => ({ seconds, id: (previous?.id ?? 0) + 1 }))
+              : undefined} />
 
           {post.feedback_prefs?.length > 0 && (
             <div className="flex gap-2 flex-wrap">
@@ -129,9 +169,22 @@ export default function PostDetail({ postId, navigate }: Props) {
             </div>
           )}
 
-          <p className="border-t border-ink-100 pt-4 text-xs text-ink-500">
-            コメント・いいね・タイムスタンプコメントは後続STEPで実装予定です。
-          </p>
+          <PostFeedback
+            postId={post.id}
+            commentsEnabled={post.comments_enabled}
+            myUserId={myUserId}
+            profileReady={profileReady}
+            onCreateProfile={() => navigate('accountSettings')}
+            ownerId={post.user_id}
+            getToken={getToken}
+            hasAudio={(post.media ?? []).some(m => m.media_type === 'audio')}
+            currentAudioSeconds={audioSeconds}
+            timestampRequest={timestampRequest}
+            onSeek={seconds => {
+              setSeekSeconds(seconds);
+              setSeekVersion(v => v + 1);
+            }}
+          />
         </article>
       )}
     </div>
