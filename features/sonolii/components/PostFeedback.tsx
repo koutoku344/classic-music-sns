@@ -11,6 +11,8 @@ type Props = {
   postId: string;
   commentsEnabled: boolean;
   myUserId: string | null;
+  profileReady: boolean;
+  onCreateProfile: () => void;
   ownerId: string;
   getToken: TokenGetter;
   hasAudio: boolean;
@@ -29,7 +31,8 @@ function formatTime(seconds: number): string {
 }
 
 export default function PostFeedback({
-  postId, commentsEnabled, myUserId, ownerId, getToken, hasAudio,
+  postId, commentsEnabled, myUserId, profileReady, onCreateProfile,
+  ownerId, getToken, hasAudio,
   currentAudioSeconds, onSeek, timestampRequest,
 }: Props) {
   const [roots, setRoots] = useState<FeedbackComment[]>([]);
@@ -44,15 +47,29 @@ export default function PostFeedback({
   const [timestamp, setTimestamp] = useState<number | null>(null);
   const [replyTarget, setReplyTarget] = useState<{ id: string; name: string; root: string } | null>(null);
   const [error, setError] = useState('');
+  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+
+  function requireProfile(): boolean {
+    if (!myUserId) {
+      setError('操作するにはログインしてください。');
+      return false;
+    }
+    if (!profileReady) {
+      setShowProfilePrompt(true);
+      return false;
+    }
+    return true;
+  }
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (!timestampRequest || !commentsEnabled || !myUserId || !hasAudio) return;
+    if (!profileReady) { setShowProfilePrompt(true); return; }
     setReplyTarget(null);
     setTimestamp(timestampRequest.seconds);
     commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     commentInputRef.current?.focus({ preventScroll: true });
-  }, [timestampRequest, commentsEnabled, myUserId, hasAudio]);
+  }, [timestampRequest, commentsEnabled, myUserId, hasAudio, profileReady]);
 
   const loadRoots = useCallback(async (cursor: string | null = null) => {
     const page = await listPostComments(postId, getToken, cursor);
@@ -101,7 +118,7 @@ export default function PostFeedback({
 
   async function submit() {
     if (busy || !commentsEnabled || !body.trim()) return;
-    if (!myUserId) { setError('コメントするにはログインしてください。'); return; }
+    if (!requireProfile()) return;
     setBusy(true);
     setError('');
     try {
@@ -126,7 +143,7 @@ export default function PostFeedback({
 
   async function togglePostLike() {
     if (busy) return;
-    if (!myUserId) { setError('いいねするにはログインしてください。'); return; }
+    if (!requireProfile()) return;
     setBusy(true);
     setError('');
     try {
@@ -139,7 +156,7 @@ export default function PostFeedback({
 
   async function toggleCommentLike(item: FeedbackComment) {
     if (busy) return;
-    if (!myUserId) { setError('いいねするにはログインしてください。'); return; }
+    if (!requireProfile()) return;
     setBusy(true);
     setError('');
     try {
@@ -172,7 +189,7 @@ export default function PostFeedback({
 
   function beginReply(item: FeedbackComment) {
     if (!commentsEnabled || item.deleted_at) return;
-    if (!myUserId) { setError('返信するにはログインしてください。'); return; }
+    if (!requireProfile()) return;
     setReplyTarget({
       id: item.id,
       name: item.display_name || 'ユーザー',
@@ -259,6 +276,33 @@ export default function PostFeedback({
 
   return (
     <section className="border-t border-ink-100 pt-4 space-y-4">
+      {showProfilePrompt && (
+        <div role="dialog" aria-modal="true" aria-label="プロフィールを作成してください"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <h3 className="font-semibold text-ink-900 text-lg">プロフィールを作成してください</h3>
+            <p className="text-sm text-ink-600">
+              いいね・コメント・返信をするには表示名を設定してください。
+              投稿やコメントの閲覧は設定前でも可能です。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setShowProfilePrompt(false)}
+                className="px-4 py-2 text-sm text-ink-600">あとで</button>
+              <button type="button" onClick={onCreateProfile}
+                className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm">
+                プロフィールを設定する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!profileReady && myUserId && commentsEnabled && (
+        <p className="text-sm text-ink-600 bg-ink-50 rounded-lg p-3">
+          いいね・コメントにはプロフィールが必要です。
+          <button type="button" className="ml-2 text-teal-700 underline"
+            onClick={onCreateProfile}>プロフィールを設定する</button>
+        </p>
+      )}
       <button type="button" disabled={busy} onClick={() => void togglePostLike()}
         className={postLikes.likedByMe
           ? 'text-rose-600 flex items-center gap-2 text-sm'
@@ -294,6 +338,8 @@ export default function PostFeedback({
             onChange={event => setBody(event.target.value)}
             maxLength={1000} rows={3}
             placeholder={myUserId ? '演奏の感想やアドバイスを入力...' : 'コメントするにはログインしてください'}
+            onFocus={() => { if (!profileReady && myUserId) setShowProfilePrompt(true); }}
+            readOnly={!profileReady}
             disabled={!myUserId || busy}
             className="w-full rounded-xl border border-ink-200 p-3 text-sm"/>
           {!replyTarget && hasAudio && (
@@ -309,7 +355,7 @@ export default function PostFeedback({
           )}
           <div className="flex justify-between items-center">
             <span className="text-xs text-ink-400">{body.length}/1000文字</span>
-            <button type="button" disabled={!myUserId || busy || !body.trim()}
+            <button type="button" disabled={!myUserId || busy || (profileReady && !body.trim())}
               onClick={() => void submit()}
               className="bg-teal-600 text-white px-5 py-2 rounded-lg text-sm disabled:opacity-40">
               {busy ? '送信中...' : replyTarget ? '返信する' : 'コメントする'}
