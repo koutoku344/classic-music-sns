@@ -404,14 +404,6 @@ export default {
           RETURNING id, clerk_user_id, created_at, updated_at
         `;
 
-        // A fresh Clerk account may not yet have a Sonolii profile.
-        // Ensure the default public profile exists before enabling feedback.
-        await sql`
-          INSERT INTO public.profiles (user_id)
-          VALUES (${rows[0].id}::uuid)
-          ON CONFLICT (user_id) DO NOTHING
-        `;
-
         return reply({ status: "ok", user: rows[0] }, 200, headers);
       }
 
