@@ -120,6 +120,21 @@ export async function handleFeedback(
     return reply({ error: "unauthorized" }, 401, headers);
   }
 
+  // Reading feedback and removing existing likes/comments remain allowed.
+  // Only NEW public actions require an intentionally configured profile.
+  const needsProfile = method === "POST" && isComments ||
+    method === "PUT" && (isPostLike || isCommentLike);
+  if (needsProfile) {
+    const configured = await sql`
+      SELECT 1 FROM public.profiles
+      WHERE user_id = ${userId}::uuid AND length(btrim(display_name)) > 0
+      LIMIT 1
+    `;
+    if (!configured.length) {
+      return reply({ error: "profile_required" }, 403, headers);
+    }
+  }
+
   // All read endpoints apply the post's visibility, never client-side filtering.
   if (method === "GET" || method === "DELETE" && isComment) {
     const visible = await sql`
