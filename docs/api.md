@@ -484,3 +484,26 @@ POST/PATCH Bodyは `body` (最大2000文字)、`pieceId` / `userPieceId` (どち
 `followers`は承認／フォロー機能未実装のため本人だけ閲覧可。`public`なら第三者閲覧可。`private`は本人のみ。短時間URLは発行後即座に失効できないため、発行から最大300秒の閲覧余地がある。
 
 詳しい検証結果と未実施事項は [STEP9-9完了判定](step9-9-closure.md) を参照。
+
+---
+
+## STEP10 実装済みコメント・いいねAPI（2026-10-19）
+
+本節は上記「# 8. Comment / Like」の概念仕様より優先する。APIルートに `/api/v1` は付けない。
+
+| Method | Path | 認証 | 内容 |
+| --- | --- | --- | --- |
+| GET | `/posts/{postId}/comments?limit=20&cursor=...` | 任意 | 親コメント新しい順、最大50件、次ページcursor |
+| GET | `/posts/{postId}/comments/{commentId}/replies?limit=20&cursor=...` | 任意 | 親に紐づく返信古い順、最大50件 |
+| POST | `/posts/{postId}/comments` | 必須＋プロフィール設定済み | コメント・返信作成（201） |
+| DELETE | `/posts/{postId}/comments/{commentId}` | 必須＋削除権限 | コメント論理削除（204） |
+| GET | `/posts/{postId}/likes` | 任意 | 投稿いいね件数、本人のいいね状態 |
+| PUT / DELETE | `/posts/{postId}/like` | 必須（新規PUTはプロフィール設定済み） | いいね登録／解除（204・冪等） |
+| GET | `/posts/{postId}/comments/{commentId}/likes` | 任意 | コメントのいいね件数、本人の状態 |
+| PUT / DELETE | `/posts/{postId}/comments/{commentId}/like` | 必須（新規PUTはプロフィール設定済み） | コメント・返信いいね登録／解除（204・冪等） |
+
+POST本文：`{"body":"感想","audioTimestampSeconds":83,"replyToCommentId":null}`。本文はtrim後1〜1000文字、時刻は音声の実長未満の0以上整数秒で親コメントのみに許可。返信は`replyToCommentId`で実際の返信先を指定し、DB上の`parent_comment_id`は常にルート親を指す。コメント受付OFFでは新規コメント・返信は409、既存閲覧・いいねは可能。
+
+公開範囲は投稿所有者の`profiles.visibility`に従う（public/本人のみ。followers/privateは現状本人のみ）。非公開・不存在は404系。プロフィール設定済みの判定は`profiles.display_name`のtrim後非空。未設定時の新規コメント・いいねは403 `profile_required`。ログイン判定はClerk JWT、ユーザーUUIDは`POST /users/sync`で取得し、同APIは`profiles`を自動作成しない。初回プロフィール保存は`PATCH /me/profile`。
+
+書き込み系フィードバック操作はCloudflare Rate Limiting bindingでユーザーごと30回/60秒、超過時429 `rate_limited`、Retry-After 60。GETはこの制限対象外。コメント削除は投稿者またはコメント本人が可能で、返信が残る親は墓石表示。詳細： [STEP10完了判定](step10-6-closure.md)。
