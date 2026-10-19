@@ -7,6 +7,9 @@ import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedbac
 interface Env extends MediaEnv {
   DATABASE_URL: string;
   CLERK_JWT_KEY: string;
+  FEEDBACK_RATE_LIMIT: {
+    limit: (input: { key: string }) => Promise<{ success: boolean }>;
+  };
 }
 
 const allowedOrigins = [
@@ -483,6 +486,20 @@ export default {
       }
 
       if (isFeedbackRoute(url.pathname)) {
+        // Apply one shared quota per authenticated user to comment and like writes.
+        // GET requests remain public and are not counted.
+        if (request.method !== "GET") {
+          const result = await env.FEEDBACK_RATE_LIMIT.limit({
+            key: `feedback:${userId}`,
+          });
+          if (!result.success) {
+            return reply(
+              { error: "rate_limited" },
+              429,
+              { ...headers, "Retry-After": "60" }
+            );
+          }
+        }
         return await handleFeedback(request, sql, userId, headers);
       }
 
