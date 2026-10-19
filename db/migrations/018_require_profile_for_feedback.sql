@@ -148,7 +148,8 @@ BEGIN
     WHERE user_id = p_user_id AND length(btrim(display_name)) > 0
   ) THEN
     RAISE EXCEPTION 'profile_required' USING ERRCODE = '22023';
-  END IF;  PERFORM p.id FROM public.posts p
+  END IF;
+  PERFORM p.id FROM public.posts p
   JOIN public.profiles pr ON pr.user_id = p.user_id
   WHERE p.id = p_post_id AND (pr.visibility = 'public' OR p.user_id = p_user_id)
   FOR UPDATE OF p;
