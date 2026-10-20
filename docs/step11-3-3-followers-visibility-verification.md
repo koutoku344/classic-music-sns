@@ -119,8 +119,7 @@ AのChrome Consoleで次を実行。閲覧APIのみ（書込みなし）：
 
     const mediaId = posts.body.posts[0]?.media?.[0]?.id;
     if (mediaId) {
-      await check(`/posts/${postId}/media/${mediaId}/read-url`);
-      // Media URL endpoint is POST, not GET. See the POST check below.
+      // Media URL endpoint uses POST, not GET.
       const res = await fetch(
         `${API}/posts/${postId}/media/${mediaId}/read-url`,
         { method: "POST", headers }
