@@ -1,6 +1,8 @@
 -- STEP11-2: follow requests/relationships and in-app notifications.
 -- Design only: apply in Neon after STEP11-2 review/approval.
 -- This migration creates NEW tables and indexes only.
+-- Rejected requests may be retried immediately (rejected -> pending via Backend).
+-- Read notifications are retained for 30 days after read_at; cleanup is a later job.
 -- Existing users/profiles/posts/comments/media/R2 objects are untouched.
 BEGIN;
 
@@ -40,7 +42,7 @@ CREATE TABLE public.follows (
   )
 );
 
--- Follower's outgoing list and pending/cooldown lookups use the UNIQUE index.
+-- Follower's outgoing list and existing relationship lookups use the UNIQUE index.
 -- Followee's incoming approvals and accepted-follower visibility checks.
 CREATE INDEX follows_followee_status_idx
   ON public.follows (followee_id, status, requested_at DESC, id DESC);
