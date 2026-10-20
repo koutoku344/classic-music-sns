@@ -22,7 +22,7 @@ function settings() {
 
   const expectedUrl = "https://sonolii-api.g57cydy6ks.workers.dev";
   assert.equal(
-    (e.SONOLII_TEST_API_URL ?? "").replace(/\\/$/, ""),
+    (e.SONOLII_TEST_API_URL ?? "").replace(/\/$/, ""),
     expectedUrl,
     "Only the current pre-release Sonolii API URL is supported"
   );
