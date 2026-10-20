@@ -136,7 +136,7 @@
 
 SQL：[019_create_follows_and_notifications.sql](../db/migrations/019_create_follows_and_notifications.sql)
 
-**今回はNeonに適用しない**。既存DBとR2には変更なし。SQL019は`BEGIN`／`COMMIT`内で新規2テーブルとインデックスを作るだけ。既存データの`DELETE`、`UPDATE`、`DROP`はない。
+**仕様が確定したため、次の手順でNeonに適用可能**。適用前は既存DBとR2に変更なし。SQL019は`BEGIN`／`COMMIT`内で新規2テーブルとインデックスを作るだけ。既存データの`DELETE`、`UPDATE`、`DROP`はない。
 
 適用前にNeonで読み取り確認：
 
@@ -150,12 +150,60 @@ ORDER BY table_name;
 
 期待：0行。すでにある場合は**SQL019を実行せず**既存定義との重複を確認する。
 
-### 適用する際の順番（後続STEP）
+### 適用手順（STEP11-2）
 
-1. SQL019の仕様レビュー・確定
-2. NeonにSQL019全文を1回実行
-3. 新テーブル・制約・INDEXの参照専用SQLで検証
-4. STEP11-3でDB関数→Backend API、STEP11-4でFrontendを実装
+1. Neon SQL Editorで上記の事前SELECTを実行し、0行であることを確認する（1行でもあれば中止）。
+2. GitHubの `db/migrations/019_create_follows_and_notifications.sql` の **BEGINからCOMMITまで全文を1回だけ実行**する。
+3. 次のSELECTを実行し、2つのテーブル・制約・INDEXが正しく作成されたことを確認する。既存レコードの削除や更新はしない。
+4. すべて正常ならSTEP11-2完了とし、STEP11-3でDB関数とBackend APIを実装する。
+
+**テーブル・レコード確認：**
+
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('follows', 'notifications')
+ORDER BY table_name;
+
+SELECT
+  (SELECT count(*) FROM public.follows) AS follows_count,
+  (SELECT count(*) FROM public.notifications) AS notifications_count;
+```
+
+期待：テーブルは `follows`、`notifications` の2件。新規テーブルのレコード件数はともに0件。
+
+**制約の確認：**
+
+```sql
+SELECT
+  conrelid::regclass AS table_name,
+  conname AS constraint_name,
+  contype AS constraint_type,
+  pg_get_constraintdef(oid) AS definition
+FROM pg_constraint
+WHERE conrelid IN (
+  'public.follows'::regclass,
+  'public.notifications'::regclass
+)
+ORDER BY conrelid::regclass::text, conname;
+```
+
+期待：各テーブルのPK、FK、CHECK、UNIQUE制約が表示される。
+
+**インデックスの確認：**
+
+```sql
+SELECT tablename, indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename IN ('follows', 'notifications')
+ORDER BY tablename, indexname;
+```
+
+期待：`follows`4本（PK・UNIQUE・明示的INDEX2本）、`notifications`8本（PK・UNIQUE・明示的INDEX6本）。
+
+`019` の適用だけではフォローや通知APIは使えない。レート制限・状態遷移・通知削除の実行処理もSTEP11-3以降で実装する。
 
 ## 8. 確認事項
 
