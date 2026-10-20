@@ -1,35 +1,45 @@
-# STEP11-T 最初のBackend自動テスト
+# STEP11-T 開発中の既存環境で実行するBackend自動テスト
 
 更新日：2026-10-20
-状態：**コード作成済み。テスト用API環境での実行は未実施。**
+状態：**GitHubのテストコードを現行API向けに修正済み。API実行は未実施。**
 
-## 1. 変更内容・動作タイミング
+## 方針
 
-- `tests/integration/followers-feedback.test.mjs`：Node標準テスト。A→Bフォロー申請・承認→Bのfollowers投稿でコメント作成・閲覧→いいね追加・確認→テストで作ったものだけ後片付け。
-- `package.json`：`npm run test:integration:follow`を追加。実行時に上記テストを起動。
-- 今回はSQL・Backendの本番コード・既存投稿データを変更しない。Vitest等の追加依存も不要。
+- **現在のNeonデータはすべて開発用のテストデータ**。既存Cloudflare APIとNeonを開発・検証に利用し、リリース時にその環境を本番へ昇格する。
+- 今は別DB・別Workerを新規構築しない。
+- 既存レコードがテストデータでも、**テストコードで既存データを一括削除しない**。テスト専用A/BとBの投稿を用いる。
+- 公開リリース後は**この現行URLに対する書き込み自動テストを実行しない**。以後の開発・検証は別環境を作成する。
 
-## 2. 実行前に必ず用意するもの
+## 1. ファイル・処理・実行タイミング
 
-**本番API・本番DBでの実行は禁止。** 書き込みテストなので隔離された専用環境を使用する。
+| ファイル | 内容 | 動くタイミング |
+| --- | --- | --- |
+| `tests/integration/followers-feedback.test.mjs` | フォロー申請・承認、コメント作成・取得、いいね作成・確認・後片付け | 手動で `npm run test:integration:follow` を実行したとき |
+| `package.json` | 上記Node標準テストを呼ぶnpmスクリプト | 同上 |
 
-1. Neonのテスト専用DB/Branch（できれば本番データの複製なし）。
-2. 本番とは別のCloudflare Worker（例：`sonolii-api-staging`）。その`DATABASE_URL`が**テスト用Neon**に接続されていることを確認。本番Workerは上書きしない。
-3. アプリに必要な既存migrationとSQL019・020・021をテスト用DBに適用済み。
-4. テスト専用A/Bアカウントを作成。Bの`profiles.visibility`は`followers`、Bが所有するコメント許可済みのテスト投稿を1件。
-5. 有効なA/BのClerk JWT。**チャット・GitHub・スクリーンショットにトークンを貼り付けない。**
+**SQL・Backend・Neonの既存テーブル定義は今回変更しない。** コメント作成・フォロー等は実際のAPIを呼ぶ時だけDBへ書き込まれる。
 
-**重要**：stagingというWorker名だけではDB隔離は保証されない。必ずWorkerの接続先DBを確認する。
+## 2. テスト実行に必要なもの
 
-## 3. テストの安全策
+- テスト専用アカウントA（コメント・いいねする側）とB（投稿者）の**ログイン済みClerkトークン**。既存のテストA/Bを再利用可能。
+- BのSonolii `users.id` とBが所有するテスト用投稿ID。
+- Bのプロフィール `visibility='followers'`、投稿 `comments_enabled=true`。
+- A/Bは**別の**ユーザーで、A→Bのフォロー状態は未フォローまたはaccepted。pendingが残っている場合はテスト停止。
+- テスト開始前にWorkerとNeonがリリース前の開発用途であることを再確認。
 
-- `SONOLII_TEST_ISOLATED_DB=YES`がなければ起動拒否。
-- 既知の本番APIホスト`sonolii-api.g57cydy6ks.workers.dev`は拒否。
-- localhostまたは名前が`sonolii-api-test`/`sonolii-api-staging`で始まるホストのみ許可。
-- Bの公開範囲がfollowers、テスト投稿がB所有かつコメント許可でなければ書き込み開始しない。
-- A→Bに既存のaccepted関係があれば削除しない。pendingなら中断。
-- テストで作成したコメントは論理削除し、テストで追加したいいね・フォローだけ解除。既存投稿・既存いいねは変更しない。
-- **論理削除コメント・通知履歴はテストDBに残る**ため、完全にロールバックされるわけではない。
+## 3. 安全対策
+
+テストコードは次の条件のどれかを満たさなければ**API呼び出し前に停止**する：
+
+- `SONOLII_TEST_PHASE=PRE_RELEASE`
+- `SONOLII_TEST_WRITE_CONFIRM=I_CONFIRM_TEST_WRITES`
+- API URLが現行の `https://sonolii-api.g57cydy6ks.workers.dev` と一致
+- テストユーザー2名分のJWT・BのUUID・投稿UUIDが指定されている
+- CI環境変数 `CI=true` ではない
+
+加えて、Bの公開範囲と投稿所有者・コメント許可を読み取り確認してから書き込み開始する。既存acceptedフォローと元々付いていたいいねは解除しない。
+
+**注意：この環境変数は本番昇格を自動検知する仕組みではありません。** 現行URLはリリース後に本番になるため、リリース時にこのスクリプトの実行を停止し、将来の開発環境に移すことが必須です。CIへこの書き込みテストを追加しないでください。
 
 ## 4. WSLでの実行
 
@@ -38,41 +48,50 @@ cd ~/classic-music-sns
 git fetch origin
 git switch feat/step11-follow-notifications
 git pull origin feat/step11-follow-notifications
-node --version
-npm run build
+node --check tests/integration/followers-feedback.test.mjs
+npx tsc --noEmit
 ```
 
-専用テストDBとWorkerの隔離を検証した後、環境変数を準備して実行する。
+テスト用アカウントの認証情報を一時的な環境変数で渡す。JWTをチャット・GitHub・ログに共有しない。
 
 ```bash
-export SONOLII_TEST_ISOLATED_DB=YES
-export SONOLII_TEST_API_URL="https://sonolii-api-staging.<your-subdomain>.workers.dev"
-export SONOLII_TEST_OWNER_ID="BのSonolii UUID"
-export SONOLII_TEST_POST_ID="Bの専用テスト投稿UUID"
-export SONOLII_TEST_ACTOR_TOKEN="テストAの有効なClerk JWT"
-export SONOLII_TEST_OWNER_TOKEN="テストBの有効なClerk JWT"
+export SONOLII_TEST_PHASE=PRE_RELEASE
+export SONOLII_TEST_WRITE_CONFIRM=I_CONFIRM_TEST_WRITES
+export SONOLII_TEST_API_URL=https://sonolii-api.g57cydy6ks.workers.dev
+export SONOLII_TEST_OWNER_ID='BのSonoliiユーザーUUID'
+export SONOLII_TEST_POST_ID='Bの投稿UUID'
+# JWTは実行直前に期限内のものを安全な方法で設定
+export SONOLII_TEST_ACTOR_TOKEN='AのClerk JWT'
+export SONOLII_TEST_OWNER_TOKEN='BのClerk JWT'
 
 npm run test:integration:follow
 ```
 
-上記は設定例であり、実際の値に置き換える。JWTをシェル履歴に残さないためには対話式入力や秘密情報管理を利用する。
+**期待**：`pass 1 / fail 0`。エラーが発生したときは本番環境や無関係のレコードに手を加えず、エラー結果を確認する。
 
-期待：Nodeテスト結果がpass 1 / fail 0。失敗した場合、JWT期限・API接続先・投稿ID・公開設定を確認。テスト終了時に環境変数をunsetする。
+テストで作成したコメントは**論理削除**され、通知履歴とともにNeonに残る可能性がある。成功時もDBが完全に初期状態に戻るわけではない。
 
 ```bash
-unset SONOLII_TEST_ISOLATED_DB SONOLII_TEST_API_URL
+unset SONOLII_TEST_PHASE SONOLII_TEST_WRITE_CONFIRM SONOLII_TEST_API_URL
 unset SONOLII_TEST_OWNER_ID SONOLII_TEST_POST_ID
 unset SONOLII_TEST_ACTOR_TOKEN SONOLII_TEST_OWNER_TOKEN
 ```
 
-## 5. ChatGPT Workへの引き継ぎ
+## 5. Workで実行するとき
 
-Workモードを開いて次を依頼する：
+WorkモードからGitHubを開き、`feat/step11-follow-notifications` ブランチにある本ファイルとテストコードを確認させる。Workにクラウド実行環境やClerkの認証がない場合は、**構文チェック・レビューまでWork**、実際のAPIテストは**WSL**で実施する。Workが手元のWSLやブラウザセッションに自動アクセスできるとは限らない。
 
-> GitHubのkoutoku344/classic-music-snsリポジトリ、feat/step11-follow-notificationsブランチのdocs/step11-T-automated-tests.mdとtests/integration/followers-feedback.test.mjsを確認してください。まず構文チェック・ビルドを実行し、専用Neon DB／専用Worker／テストA/B・有効なJWTがない場合は書き込みテストを開始せず、必要な準備だけ提示してください。隔離環境が確認できたらnpm run test:integration:followを実行し、結果・テストデータの残存・必要な修正を報告してください。本番環境や既存ユーザーデータは変更しないでください。
+Workへの依頼文：
 
-Workを利用するにはGitHubへのアクセスと、操作できる実行環境・認証権限が必要。WorkからWSLに直接アクセスできるとは限らない。
+> Sonolii（GitHub `koutoku344/classic-music-sns`、`feat/step11-follow-notifications`）の `docs/step11-T-automated-tests.md` と `tests/integration/followers-feedback.test.mjs` を確認し、構文チェック・安全性レビュー・必要な修正を行ってください。現在の `sonolii-api.g57cydy6ks.workers.dev` とNeonはリリース前の開発環境で、Neon内はテストデータです。別のDB/Workerを作らず、専用A/Bアカウントと投稿だけを利用してください。JWTや必要な接続権限が取得できなければ書き込みテストを開始せず、準備方法を示してください。実行できるなら `npm run test:integration:follow` を実施し、結果と残存データを報告してください。ソース変更・SQL変更時には内容、実行タイミング、理由、データへの影響を説明してください。公開リリース後は現行APIに対するテストを書き込まないでください。
 
-## 6. 次に進む条件
+## 6. リリース時の必須対応
 
-まず専用環境で1回成功させる。その後、GitHub Actions、他の権限テスト、通知APIの自動テストを追加する。
+1. このテストの実行を停止。環境変数を解除し、CIにも書き込みテストを登録しない。
+2. テストアカウント・投稿・コメント墓石・通知・R2を棚卸しし、削除する場合は**対象IDを確認**してから個別に実行する。
+3. Neonのバックアップ/復元、Clerk、R2 CORS/メディア、Worker Secrets、監視を確認する。
+4. リリース後に新機能を作る際は、別の開発DB/Workerで書き込みテストを実行する。
+
+## 7. 次工程
+
+このテストが正常終了したらSTEP11-3-3を完了し、STEP11-3-4通知API実装に進む。
