@@ -3,6 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
 import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
+import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -328,7 +329,8 @@ export default {
       catalogGet || repList || repCreate || repUpdate || repDelete ||
       userPiecesList || userPiecesCreate || userPiecesPatch ||
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
-      isMediaRoute(url.pathname) || isPostRoute(url.pathname) || isFeedbackRoute(url.pathname))) {
+      isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
+      isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -337,7 +339,8 @@ export default {
 
     if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
       !isPostMediaReadUrl(request.method, url.pathname) &&
-      !isPublicFeedbackRead(request.method, url.pathname) && !clerkId) {
+      !isPublicFeedbackRead(request.method, url.pathname) &&
+      !isPublicFollowRead(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -356,7 +359,8 @@ export default {
       // Authenticated visitors are looked up for owner visibility.
       if (isPublicPostRead(request.method, url.pathname) ||
           isPostMediaReadUrl(request.method, url.pathname) ||
-          isPublicFeedbackRead(request.method, url.pathname)) {
+          isPublicFeedbackRead(request.method, url.pathname) ||
+          isPublicFollowRead(request.method, url.pathname)) {
         let viewerId: string | null = null;
         if (clerkId) {
           const viewers = await sql`
@@ -364,9 +368,13 @@ export default {
           `;
           viewerId = (viewers[0]?.id as string | undefined) ?? null;
         }
-        return isFeedbackRoute(url.pathname)
-          ? await handleFeedback(request, sql, viewerId, headers)
-          : await handlePosts(request, sql, env, viewerId, headers);
+        if (isFeedbackRoute(url.pathname)) {
+          return await handleFeedback(request, sql, viewerId, headers);
+        }
+        if (isFollowRoute(url.pathname)) {
+          return await handleFollow(request, sql, viewerId, headers);
+        }
+        return await handlePosts(request, sql, env, viewerId, headers);
       }
 
       if (catalogGet) {
@@ -480,6 +488,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isFollowRoute(url.pathname)) {
+        return await handleFollow(request, sql, userId, headers);
+      }
 
       if (isMediaRoute(url.pathname)) {
         return await handleMedia(request, env, sql, userId, headers);
