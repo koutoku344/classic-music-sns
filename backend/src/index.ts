@@ -444,8 +444,31 @@ export default {
 
         const isOwner = !!clerkId && clerkId === row.clerk_user_id;
 
-        // STEP10までは承認済みフォロワーを判定できないため followers は本人のみ。
-        const canSee = isOwner || row.visibility === "public";
+        // private is always owner-only. followers allows accepted followers.
+        let isAcceptedFollower = false;
+        if (!isOwner && clerkId && row.visibility === "followers") {
+          const viewer = await sql`
+            SELECT id FROM public.users
+            WHERE clerk_user_id = ${clerkId}
+            LIMIT 1
+          `;
+
+          if (viewer.length) {
+            const follows = await sql`
+              SELECT 1 FROM public.follows
+              WHERE follower_id = ${viewer[0].id}::uuid
+                AND followee_id = ${id}::uuid
+                AND status = 'accepted'
+              LIMIT 1
+            `;
+            isAcceptedFollower = follows.length > 0;
+          }
+        }
+
+        const canSee =
+          isOwner ||
+          row.visibility === "public" ||
+          (row.visibility === "followers" && isAcceptedFollower);
 
         if (!canSee) {
           return reply(
