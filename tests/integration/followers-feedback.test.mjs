@@ -1,27 +1,38 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// Integration test: deliberately blocks production and requires dedicated staging resources.
+// Pre-release-only integration test. Current deployment may become production later.
+// Refuses CI, requires an explicit manual opt-in and exact current API endpoint.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function settings() {
   const e = process.env;
-  assert.equal(e.SONOLII_TEST_ISOLATED_DB, "YES", "Only run against an isolated test DB");
-  assert.ok(e.SONOLII_TEST_API_URL, "SONOLII_TEST_API_URL is required");
-  const url = new URL(e.SONOLII_TEST_API_URL);
-  assert.notEqual(url.hostname, "sonolii-api.g57cydy6ks.workers.dev", "Production API forbidden");
-  assert.ok(
-    url.hostname === "localhost" || url.hostname === "127.0.0.1" ||
-    /^sonolii-api-(test|staging)([.-]|$)/.test(url.hostname),
-    "Use only localhost or sonolii-api-test/staging hosts"
+
+  assert.notEqual(e.CI, "true", "Writing API test must not run in CI");
+  assert.equal(
+    e.SONOLII_TEST_PHASE,
+    "PRE_RELEASE",
+    "Set SONOLII_TEST_PHASE=PRE_RELEASE only before public release"
   );
-  assert.ok(["http:", "https:"].includes(url.protocol));
+  assert.equal(
+    e.SONOLII_TEST_WRITE_CONFIRM,
+    "I_CONFIRM_TEST_WRITES",
+    "Explicit opt-in required: SONOLII_TEST_WRITE_CONFIRM=I_CONFIRM_TEST_WRITES"
+  );
+
+  const expectedUrl = "https://sonolii-api.g57cydy6ks.workers.dev";
+  assert.equal(
+    (e.SONOLII_TEST_API_URL ?? "").replace(/\\/$/, ""),
+    expectedUrl,
+    "Only the current pre-release Sonolii API URL is supported"
+  );
   assert.ok(e.SONOLII_TEST_ACTOR_TOKEN && e.SONOLII_TEST_OWNER_TOKEN);
   assert.notEqual(e.SONOLII_TEST_ACTOR_TOKEN, e.SONOLII_TEST_OWNER_TOKEN);
   assert.ok(UUID.test(e.SONOLII_TEST_OWNER_ID ?? ""), "Invalid owner UUID");
   assert.ok(UUID.test(e.SONOLII_TEST_POST_ID ?? ""), "Invalid test post UUID");
+
   return {
-    base: url.origin + url.pathname.replace(/\/$/, ""),
+    base: expectedUrl,
     actor: e.SONOLII_TEST_ACTOR_TOKEN,
     owner: e.SONOLII_TEST_OWNER_TOKEN,
     ownerId: e.SONOLII_TEST_OWNER_ID,
@@ -85,7 +96,7 @@ test("STEP11 accepted follower can post comments and likes", async () => {
     assert.equal(typeof likeBefore.body?.likedByMe, "boolean");
 
     const comment = await api(c, A, "POST", "/posts/" + pid + "/comments",
-      { body: "STEP11-T staging-only automatic test comment" });
+      { body: "STEP11-T pre-release automatic test comment" });
     status(comment, 201, "Create comment");
     commentId = comment.body?.comment?.id;
     assert.ok(UUID.test(commentId ?? ""));
