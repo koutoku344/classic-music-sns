@@ -117,7 +117,7 @@ export async function handlePosts(
     }
 
     // Check the *post's* visibility before issuing access to Private R2.
-    // Owner may view; other visitors require a public profile.
+    // Owner, public visitors, or accepted followers of followers-only profiles may view.
     const rows = await sql`
       SELECT m.object_key
       FROM public.posts p
@@ -126,7 +126,17 @@ export async function handlePosts(
       JOIN public.media m ON m.id = pm.media_id
       WHERE p.id = ${postId}::uuid
         AND pm.media_id = ${mediaId}::uuid
-        AND (pr.visibility = 'public' OR p.user_id = ${userId}::uuid)
+        AND (pr.visibility = 'public'
+          OR p.user_id = ${userId}::uuid
+          OR (
+            pr.visibility = 'followers'
+            AND EXISTS (
+              SELECT 1 FROM public.follows f
+              WHERE f.follower_id = ${userId}::uuid
+                AND f.followee_id = p.user_id
+                AND f.status = 'accepted'
+            )
+          ))
         AND m.upload_status = 'ready'
         AND m.deleted_at IS NULL
       LIMIT 1
@@ -219,7 +229,17 @@ export async function handlePosts(
       LEFT JOIN public.composers c ON c.id = pc.composer_id
       LEFT JOIN public.user_pieces up ON up.id = p.user_piece_id
       WHERE p.id = ${postMatch[1]}::uuid
-        AND (pr.visibility = 'public' OR p.user_id = ${userId}::uuid)
+        AND (pr.visibility = 'public'
+          OR p.user_id = ${userId}::uuid
+          OR (
+            pr.visibility = 'followers'
+            AND EXISTS (
+              SELECT 1 FROM public.follows f
+              WHERE f.follower_id = ${userId}::uuid
+                AND f.followee_id = p.user_id
+                AND f.status = 'accepted'
+            )
+          ))
       LIMIT 1
     `;
     return rows.length ? reply({ post: rows[0] }, 200, headers)
@@ -265,7 +285,17 @@ export async function handlePosts(
       LEFT JOIN public.pieces pc ON pc.id = p.piece_id
       LEFT JOIN public.composers c ON c.id = pc.composer_id
       LEFT JOIN public.user_pieces up ON up.id = p.user_piece_id
-      WHERE (pr.visibility = 'public' OR p.user_id = ${userId}::uuid)
+      WHERE (pr.visibility = 'public'
+          OR p.user_id = ${userId}::uuid
+          OR (
+            pr.visibility = 'followers'
+            AND EXISTS (
+              SELECT 1 FROM public.follows f
+              WHERE f.follower_id = ${userId}::uuid
+                AND f.followee_id = p.user_id
+                AND f.status = 'accepted'
+            )
+          ))
         AND (${profileId}::uuid IS NULL OR p.user_id = ${profileId}::uuid)
         AND (${pieceId}::uuid IS NULL OR p.piece_id = ${pieceId}::uuid)
         AND (${cursor?.at ?? null}::timestamptz IS NULL
