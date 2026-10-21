@@ -5,6 +5,7 @@ import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "
 import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
 import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
+import { handleRecruitments, isRecruitmentRoute, isPublicRecruitmentRead } from "./recruitments";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -332,7 +333,7 @@ export default {
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
       isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
-      isNotificationRoute(url.pathname))) {
+      isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -342,7 +343,8 @@ export default {
     if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
       !isPostMediaReadUrl(request.method, url.pathname) &&
       !isPublicFeedbackRead(request.method, url.pathname) &&
-      !isPublicFollowRead(request.method, url.pathname) && !clerkId) {
+      !isPublicFollowRead(request.method, url.pathname) &&
+      !isPublicRecruitmentRead(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -377,6 +379,15 @@ export default {
           return await handleFollow(request, sql, viewerId, headers);
         }
         return await handlePosts(request, sql, env, viewerId, headers);
+      }
+
+      if (isPublicRecruitmentRead(request.method, url.pathname)) {
+        let viewerId: string | null = null;
+        if (clerkId) {
+          const viewers = await sql`SELECT id FROM public.users WHERE clerk_user_id=${clerkId} LIMIT 1`;
+          viewerId = (viewers[0]?.id as string | undefined) ?? null;
+        }
+        return await handleRecruitments(request, sql, viewerId, headers);
       }
 
       if (catalogGet) {
@@ -516,6 +527,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isRecruitmentRoute(url.pathname)) {
+        return await handleRecruitments(request, sql, userId, headers);
+      }
 
       if (isFollowRoute(url.pathname)) {
         return await handleFollow(request, sql, userId, headers);
