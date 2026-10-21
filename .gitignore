@@ -11,3 +11,8 @@ next-env.d.ts
 !.dev.vars.example
 !.env.example
 *.tsbuildinfo
+
+# Playwright
+/playwright-report/
+/test-results/
+/playwright/.auth/
