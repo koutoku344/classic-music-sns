@@ -478,6 +478,9 @@ export default {
               profile: {
                 user_id: row.user_id,
                 display_name: row.display_name,
+                bio: row.bio,
+                instruments: row.instruments,
+                region: row.region === "非公開" ? null : row.region,
                 visibility: row.visibility,
                 restricted: true,
               },
