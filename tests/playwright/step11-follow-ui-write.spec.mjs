@@ -97,10 +97,19 @@ test("STEP11 dedicated accounts: request -> approve in notification -> accessibl
     await actor.reload();
     await expect(actor.getByRole("button", { name: "フォローを解除" })).toBeVisible();
     actor.once("dialog", dialog => dialog.accept());
+    const deleteResult = actor.waitForResponse(
+      response => response.request().method() === "DELETE" &&
+        response.url() === API + "/users/" + c.ownerId + "/follow",
+      { timeout: 25_000 },
+    );
     await actor.getByRole("button", { name: "フォローを解除" }).click();
-    await expect(actor.getByRole("button", { name: "フォローする" })).toBeVisible();
+    const deleteResponse = await deleteResult;
+    expect(deleteResponse.status(), "Unfollow API response").toBe(204);
+    await expect(actor.getByRole("button", { name: "フォローする" }))
+      .toBeVisible({ timeout: 20_000 });
     await expect.poll(async () =>
-      (await get(actor, "/users/" + c.ownerId + "/follow")).body.status
+      (await get(actor, "/users/" + c.ownerId + "/follow")).body.status,
+      { timeout: 15_000 },
     ).toBeNull();
   } catch (e) {
     errors.push(e);
