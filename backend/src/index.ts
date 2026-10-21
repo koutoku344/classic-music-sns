@@ -4,7 +4,7 @@ import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media"
 import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
 import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
-import { handleNotifications, isNotificationRoute } from "./notifications";
+import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -989,6 +989,13 @@ export default {
   },
 
   async scheduled(_event: unknown, env: Env): Promise<void> {
-    await cleanupMedia(env, neon(env.DATABASE_URL));
+    const sql = neon(env.DATABASE_URL);
+
+    // Both cleanup jobs are independent. A failure in one must not prevent
+    // the other from running; Promise.all still reports failures to Workers.
+    await Promise.all([
+      cleanupMedia(env, sql),
+      cleanupExpiredNotifications(sql),
+    ]);
   },
 };
