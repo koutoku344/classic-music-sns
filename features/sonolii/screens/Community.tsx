@@ -194,7 +194,7 @@ export default function Community({ navigate }: CommunityProps) {
                 key={item.id}
                 recruitment={item}
                 onClick={() => navigate('recruitmentDetail', { id: item.id })}
-                onUserClick={() => navigate('userProfile', { id: item.user.id })}
+                onUserClick={() => navigate('userProfile', { id: item.user_id })}
               />
             ))}
             {recruitCursor && <button onClick={() => void loadMoreRecruitments()} disabled={recruitMoreBusy}
