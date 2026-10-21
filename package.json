@@ -45,7 +45,8 @@
     "test:playwright:notifications-read-state": "playwright test notifications-mark-read.spec.mjs",
     "test:playwright:notifications-ui": "playwright test notifications-ui-read.spec.mjs",
     "test:step11:static": "node --test tests/integration/notification-navigation.test.mjs",
-    "test:step11:read": "playwright test notifications-ui-read.spec.mjs step11-navigation-read.spec.mjs"
+    "test:step11:read": "playwright test notifications-ui-read.spec.mjs step11-navigation-read.spec.mjs",
+    "test:step11:write": "playwright test step11-follow-ui-write.spec.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
