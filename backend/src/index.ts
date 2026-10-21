@@ -4,6 +4,7 @@ import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media"
 import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
 import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
+import { handleNotifications, isNotificationRoute } from "./notifications";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -330,7 +331,8 @@ export default {
       userPiecesList || userPiecesCreate || userPiecesPatch ||
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
-      isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname))) {
+      isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
+      isNotificationRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -514,6 +516,10 @@ export default {
 
       if (isFollowRoute(url.pathname)) {
         return await handleFollow(request, sql, userId, headers);
+      }
+
+      if (isNotificationRoute(url.pathname)) {
+        return await handleNotifications(request, sql, userId, headers);
       }
 
       if (isMediaRoute(url.pathname)) {
