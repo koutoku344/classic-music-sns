@@ -9,6 +9,9 @@ export type NotificationRow = {
   type: NotificationType;
   createdAt: string;
   readAt: string | null;
+  actorName: string | null;
+  actorId: string | null;
+  targetPostId: string | null;
 };
 
 export type NotificationPage = {
