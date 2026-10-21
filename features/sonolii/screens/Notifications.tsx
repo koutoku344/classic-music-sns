@@ -139,17 +139,17 @@ export default function Notifications({ navigate }: {
       if (item.actorId) navigate('userProfile', { id: item.actorId, from: 'notifications' });
       return;
     }
-    if (['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type)
-      && item.targetPostId) {
-      navigate('postDetail', { id: item.targetPostId, from: 'notifications' });
+    if (['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type)) {
+      navigate('postDetail', item.targetPostId
+        ? { id: item.targetPostId, from: 'notifications' }
+        : { id: item.id, from: 'notifications', unavailable: '1' });
     }
   };
 
   const canOpen = (item: NotificationRow) =>
     ['follow', 'follow_request', 'follow_accepted'].includes(item.type)
       ? !!item.actorId
-      : ['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type)
-        && !!item.targetPostId;
+      : ['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
@@ -259,7 +259,7 @@ export default function Notifications({ navigate }: {
             </button>
           )}
           <p className="mt-4 text-xs text-ink-400">
-            通知を押すと対象の投稿またはプロフィールに移動します。閲覧権限がない場合は移動できません。
+            通知を押すと対象の投稿またはプロフィールに移動します。閲覧権限がない投稿は、詳細画面で閲覧できない旨を表示します。
           </p>
         </>
       )}
