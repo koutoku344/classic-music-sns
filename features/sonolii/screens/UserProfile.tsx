@@ -125,21 +125,12 @@ export default function UserProfile({
           <h1 className="text-xl font-bold">
             {profile.display_name || 'プロフィール未設定'}
           </h1>
-          {profile.restricted ? (
-            <p className="mt-4 text-sm text-ink-500">
-              このプロフィールは公開範囲が制限されています。
-            </p>
-          ) : (
-            <>
-              <p className="mt-3 text-sm">
-                {profile.instruments?.join('・') || '楽器未設定'}
-              </p>
-              {profile.region && (
-                <p className="mt-2 text-sm">地域：{profile.region}</p>
-              )}
-              <p className="mt-4 whitespace-pre-wrap">{profile.bio || ''}</p>
-            </>
-          )}
+          <p className="mt-3 text-sm">
+            {profile.instruments?.join('・') || '楽器未設定'}
+          </p>
+          {profile.region && <p className="mt-2 text-sm">地域：{profile.region}</p>}
+          <p className="mt-4 whitespace-pre-wrap">{profile.bio || ''}</p>
+          {profile.restricted && <p className="mt-4 text-sm text-ink-500">投稿は公開範囲が制限されています。</p>}
           <p className="mt-6 text-xs text-ink-400">
             フォロー・レパートリーの公開表示は後続STEPで対応予定です。
           </p>
