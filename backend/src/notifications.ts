@@ -96,8 +96,8 @@ export async function handleNotifications(
                 AND pf.follower_id = ${userId}::uuid
                 AND pf.status = 'accepted'
             )))
-          AND (n.comment_id IS NULL OR
-            (comment.id IS NOT NULL AND comment.deleted_at IS NULL))
+          -- A deleted comment does not revoke access to its surviving post.
+          -- The post-detail API performs its own visibility check on navigation.
           THEN p.id ELSE NULL END AS target_post_id,
         to_char(n.created_at AT TIME ZONE 'UTC',
           'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at
@@ -105,8 +105,6 @@ export async function handleNotifications(
       LEFT JOIN public.profiles actor ON actor.user_id = n.actor_user_id
       LEFT JOIN public.posts p ON p.id = n.post_id
       LEFT JOIN public.profiles owner_pr ON owner_pr.user_id = p.user_id
-      LEFT JOIN public.post_comments comment ON comment.id = n.comment_id
-        AND comment.post_id = p.id
       WHERE n.recipient_user_id = ${userId}::uuid
         AND (n.read_at IS NULL OR n.read_at >= now() - interval '30 days')
         AND (${cursor?.at ?? null}::timestamptz IS NULL
