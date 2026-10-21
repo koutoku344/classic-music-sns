@@ -136,6 +136,7 @@ export default function UserProfile({
       const response = await fetch(`${API}/users/${encodeURIComponent(userId)}/follow`, {
         method: undo ? 'DELETE' : 'PUT',
         headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) throw new Error(`フォロー操作に失敗しました（HTTP ${response.status}）`);
       if (undo) setFollowStatus(null);
