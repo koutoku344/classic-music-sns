@@ -142,7 +142,17 @@ export async function handleFeedback(
       FROM public.posts p
       JOIN public.profiles pr ON pr.user_id = p.user_id
       WHERE p.id = ${postId}::uuid
-        AND (pr.visibility = 'public' OR p.user_id = ${userId}::uuid)
+        AND (pr.visibility = 'public'
+          OR p.user_id = ${userId}::uuid
+          OR (
+            pr.visibility = 'followers'
+            AND EXISTS (
+              SELECT 1 FROM public.follows f
+              WHERE f.follower_id = ${userId}::uuid
+                AND f.followee_id = p.user_id
+                AND f.status = 'accepted'
+            )
+          ))
       LIMIT 1
     `;
     // The writer can delete their own comment even if the post became private.

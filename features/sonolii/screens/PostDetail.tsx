@@ -27,10 +27,14 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [timestampRequest, setTimestampRequest] = useState<{ seconds: number; id: number } | null>(null);
   // SSR and the first browser render must agree. Read the URL after hydration.
   const [fromMyPage, setFromMyPage] = useState(false);
+  const [fromNotifications, setFromNotifications] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setFromMyPage(params.get('from') === 'my-page');
+    setFromNotifications(params.get('from') === 'notifications');
+    setUnavailable(params.get('from') === 'notifications' && params.get('unavailable') === '1');
     const commentAt = params.get('commentAt');
     if (commentAt !== null && /^\d+$/.test(commentAt)) {
       const seconds = Number(commentAt);
@@ -45,6 +49,13 @@ export default function PostDetail({ postId, navigate }: Props) {
 
   useEffect(() => {
     if (!isLoaded) return;
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('from') === 'notifications' && query.get('unavailable') === '1') {
+      setPost(null);
+      setError('');
+      setLoading(false);
+      return;
+    }
     let active = true;
     setPost(null);
     setLoading(true);
@@ -108,11 +119,12 @@ export default function PostDetail({ postId, navigate }: Props) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => navigate(fromMyPage ? 'myPage' : 'community')}
+      <button onClick={() => navigate(fromNotifications ? 'notifications' : fromMyPage ? 'myPage' : 'community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
-        <ArrowLeft size={18}/> {fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
+        <ArrowLeft size={18}/> {fromNotifications ? '通知へ戻る' : fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
 
+      {unavailable && <div role="status" className="bg-white rounded-xl border border-ink-100 p-6 text-sm text-ink-600">この投稿は閲覧できません。非公開・削除済み、または閲覧権限がない可能性があります。</div>}
       {loading && <p role="status" className="text-sm text-ink-500">投稿を読み込み中...</p>}
       {error && <div role="alert" className="bg-white rounded-xl border border-ink-100 p-5 text-sm text-red-600">{error}</div>}
 

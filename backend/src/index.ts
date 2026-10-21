@@ -3,6 +3,8 @@ import { neon } from "@neondatabase/serverless";
 import { handleMedia, isMediaRoute, cleanupMedia, type MediaEnv } from "./media";
 import { handlePosts, isPostRoute, isPublicPostRead, isPostMediaReadUrl } from "./posts";
 import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedback";
+import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
+import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -328,7 +330,9 @@ export default {
       catalogGet || repList || repCreate || repUpdate || repDelete ||
       userPiecesList || userPiecesCreate || userPiecesPatch ||
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
-      isMediaRoute(url.pathname) || isPostRoute(url.pathname) || isFeedbackRoute(url.pathname))) {
+      isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
+      isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
+      isNotificationRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -337,7 +341,8 @@ export default {
 
     if (!publicGet && !catalogGet && !isPublicPostRead(request.method, url.pathname) &&
       !isPostMediaReadUrl(request.method, url.pathname) &&
-      !isPublicFeedbackRead(request.method, url.pathname) && !clerkId) {
+      !isPublicFeedbackRead(request.method, url.pathname) &&
+      !isPublicFollowRead(request.method, url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -356,7 +361,8 @@ export default {
       // Authenticated visitors are looked up for owner visibility.
       if (isPublicPostRead(request.method, url.pathname) ||
           isPostMediaReadUrl(request.method, url.pathname) ||
-          isPublicFeedbackRead(request.method, url.pathname)) {
+          isPublicFeedbackRead(request.method, url.pathname) ||
+          isPublicFollowRead(request.method, url.pathname)) {
         let viewerId: string | null = null;
         if (clerkId) {
           const viewers = await sql`
@@ -364,9 +370,13 @@ export default {
           `;
           viewerId = (viewers[0]?.id as string | undefined) ?? null;
         }
-        return isFeedbackRoute(url.pathname)
-          ? await handleFeedback(request, sql, viewerId, headers)
-          : await handlePosts(request, sql, env, viewerId, headers);
+        if (isFeedbackRoute(url.pathname)) {
+          return await handleFeedback(request, sql, viewerId, headers);
+        }
+        if (isFollowRoute(url.pathname)) {
+          return await handleFollow(request, sql, viewerId, headers);
+        }
+        return await handlePosts(request, sql, env, viewerId, headers);
       }
 
       if (catalogGet) {
@@ -436,8 +446,31 @@ export default {
 
         const isOwner = !!clerkId && clerkId === row.clerk_user_id;
 
-        // STEP10までは承認済みフォロワーを判定できないため followers は本人のみ。
-        const canSee = isOwner || row.visibility === "public";
+        // private is always owner-only. followers allows accepted followers.
+        let isAcceptedFollower = false;
+        if (!isOwner && clerkId && row.visibility === "followers") {
+          const viewer = await sql`
+            SELECT id FROM public.users
+            WHERE clerk_user_id = ${clerkId}
+            LIMIT 1
+          `;
+
+          if (viewer.length) {
+            const follows = await sql`
+              SELECT 1 FROM public.follows
+              WHERE follower_id = ${viewer[0].id}::uuid
+                AND followee_id = ${id}::uuid
+                AND status = 'accepted'
+              LIMIT 1
+            `;
+            isAcceptedFollower = follows.length > 0;
+          }
+        }
+
+        const canSee =
+          isOwner ||
+          row.visibility === "public" ||
+          (row.visibility === "followers" && isAcceptedFollower);
 
         if (!canSee) {
           return reply(
@@ -445,6 +478,9 @@ export default {
               profile: {
                 user_id: row.user_id,
                 display_name: row.display_name,
+                bio: row.bio,
+                instruments: row.instruments,
+                region: row.region === "非公開" ? null : row.region,
                 visibility: row.visibility,
                 restricted: true,
               },
@@ -480,6 +516,14 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isFollowRoute(url.pathname)) {
+        return await handleFollow(request, sql, userId, headers);
+      }
+
+      if (isNotificationRoute(url.pathname)) {
+        return await handleNotifications(request, sql, userId, headers);
+      }
 
       if (isMediaRoute(url.pathname)) {
         return await handleMedia(request, env, sql, userId, headers);
@@ -948,6 +992,13 @@ export default {
   },
 
   async scheduled(_event: unknown, env: Env): Promise<void> {
-    await cleanupMedia(env, neon(env.DATABASE_URL));
+    const sql = neon(env.DATABASE_URL);
+
+    // Both cleanup jobs are independent. A failure in one must not prevent
+    // the other from running; Promise.all still reports failures to Workers.
+    await Promise.all([
+      cleanupMedia(env, sql),
+      cleanupExpiredNotifications(sql),
+    ]);
   },
 };

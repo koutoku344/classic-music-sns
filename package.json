@@ -15,7 +15,9 @@
     "vinext": "1.1.0"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.48",
     "@cloudflare/vite-plugin": "1.63.1",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "latest",
     "@types/node": "^26.6.4",
     "@types/react": "latest",
@@ -34,7 +36,19 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "preview": "npm run build && npm run start --",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv ./worker-configuration.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv ./worker-configuration.d.ts",
+    "test:integration:follow": "node --test tests/integration/followers-feedback.test.mjs",
+    "test:playwright:auth": "playwright test clerk-auth.spec.mjs",
+    "test:playwright:follow": "playwright test followers-feedback.spec.mjs",
+    "test:playwright:notifications-feedback": "playwright test notifications-feedback.spec.mjs",
+    "test:playwright:notifications-reply": "playwright test notifications-reply-likes.spec.mjs",
+    "test:playwright:notifications-read-state": "playwright test notifications-mark-read.spec.mjs",
+    "test:playwright:notifications-ui": "playwright test notifications-ui-read.spec.mjs",
+    "test:step11:static": "node --test tests/integration/notification-navigation.test.mjs tests/integration/step11-boundaries.test.mjs",
+    "test:step11:read": "playwright test notifications-ui-read.spec.mjs step11-navigation-read.spec.mjs",
+    "test:step11:write": "playwright test step11-follow-ui-write.spec.mjs",
+    "test:step11:auth-read": "playwright test step11-authorization-read.spec.mjs",
+    "test:step11:cron": "node --test tests/integration/notification-cron-mock.test.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,

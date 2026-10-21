@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/react";
+import { getUnreadNotificationCount } from "@/features/sonolii/lib/notificationApi";
 import type { ScreenName } from "@/features/sonolii/types";
-import { conversations, notifications } from "@/features/sonolii/data";
+import { conversations } from "@/features/sonolii/data";
 import Header from "@/features/sonolii/components/Header";
 import BottomNav from "@/features/sonolii/components/BottomNav";
 import Landing from "@/features/sonolii/screens/Landing";
@@ -62,6 +65,35 @@ type RouteScreenProps = {
 
 export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   const router = useRouter();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let active = true;
+    const refresh = () => {
+      void getUnreadNotificationCount(getToken)
+        .then(value => { if (active) setUnreadNotifications(value); })
+        .catch(() => { if (active) setUnreadNotifications(0); });
+    };
+    window.addEventListener("sonolii:notification-read", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("sonolii:notification-read", refresh);
+    };
+  }, [isLoaded, isSignedIn, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setUnreadNotifications(0);
+      return;
+    }
+    let active = true;
+    void getUnreadNotificationCount(getToken)
+      .then(value => { if (active) setUnreadNotifications(value); })
+      .catch(() => { if (active) setUnreadNotifications(0); });
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, getToken, screen]);
 
   const navigate = (next: ScreenName, params?: Record<string, string>) => {
     const targetId = params?.id ?? "";
@@ -69,7 +101,8 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     if (next === "postDetail") {
       href = `/posts/${targetId}`;
       const query = new URLSearchParams();
-      if (params?.from === "my-page") query.set("from", "my-page");
+      if (params?.from === "my-page" || params?.from === "notifications") query.set("from", params.from);
+      if (params?.unavailable === "1" && params?.from === "notifications") query.set("unavailable", "1");
       if (params?.commentAt && /^\d+$/.test(params.commentAt)) {
         query.set("commentAt", params.commentAt);
       }
@@ -86,7 +119,10 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     }
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
-    if (next === "userProfile") href = `/users/${targetId}`;
+    if (next === "userProfile") {
+      href = `/users/${targetId}`;
+      if (params?.from === "notifications") href += "?from=notifications";
+    }
     router.push(href);
     window.scrollTo(0, 0);
   };
@@ -94,7 +130,6 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   if (screen === "landing") return <Landing navigate={navigate} />;
   if (screen === "auth") return <Auth navigate={navigate} />;
 
-  const unreadNotifications = notifications.filter((n) => !n.read).length;
   const unreadMessages = conversations.filter((c) => c.unread).length;
 
   let content: React.ReactNode;
