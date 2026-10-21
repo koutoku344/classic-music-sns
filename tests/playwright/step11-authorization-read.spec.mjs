@@ -35,8 +35,10 @@ test("non-follower cannot read followers-only post, while owner can", async ({ b
   if (!ownerId || !postId || !actorEmail || !ownerEmail) {
     test.skip(true, "Set dedicated A/B emails, SONOLII_TEST_OWNER_ID and SONOLII_TEST_POST_ID");
   }
-  expect(ownerId).toMatch(UUID);
-  expect(postId).toMatch(UUID);
+  // Match using the same native RegExp.test() as the WSL preflight check.
+  // A valid UUID must not be rejected by the assertion layer.
+  expect(UUID.test(ownerId), "SONOLII_TEST_OWNER_ID must be UUID").toBe(true);
+  expect(UUID.test(postId), "SONOLII_TEST_POST_ID must be UUID").toBe(true);
   expect(actorEmail).not.toBe(ownerEmail);
 
   const ac = await browser.newContext();
