@@ -40,7 +40,8 @@
     "test:integration:follow": "node --test tests/integration/followers-feedback.test.mjs",
     "test:playwright:auth": "playwright test clerk-auth.spec.mjs",
     "test:playwright:follow": "playwright test followers-feedback.spec.mjs",
-    "test:playwright:notifications-feedback": "playwright test notifications-feedback.spec.mjs"
+    "test:playwright:notifications-feedback": "playwright test notifications-feedback.spec.mjs",
+    "test:playwright:notifications-reply": "playwright test notifications-reply-likes.spec.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
