@@ -93,6 +93,63 @@ export default function UserProfile({
     return () => { active = false; };
   }, [isLoaded, profile?.user_id, profile?.restricted, getToken]);
 
+  const [followStatus, setFollowStatus] = useState<'self' | 'pending' | 'accepted' | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState('');
+
+  useEffect(() => {
+    if (!isLoaded || !profile) return;
+    let active = true;
+    setFollowLoading(true);
+    setFollowError('');
+    (async () => {
+      try {
+        const token = await getToken();
+        const response = await fetch(`${API}/users/${encodeURIComponent(userId)}/follow`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) throw new Error(`フォロー状態を取得できませんでした（HTTP ${response.status}）`);
+        const data = await response.json() as { status: 'self' | 'pending' | 'accepted' | null };
+        if (active) setFollowStatus(data.status);
+      } catch (e) {
+        if (active) setFollowError(e instanceof Error ? e.message : 'フォロー状態を取得できませんでした');
+      } finally {
+        if (active) setFollowLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [isLoaded, profile?.user_id, getToken, userId]);
+
+  async function changeFollow() {
+    if (followBusy || followLoading) return;
+    const token = await getToken();
+    if (!token) {
+      setFollowError('フォローするにはログインが必要です。');
+      return;
+    }
+    const undo = followStatus === 'pending' || followStatus === 'accepted';
+    if (undo && !window.confirm(followStatus === 'pending' ? 'フォロー申請を取り消しますか？' : 'フォローを解除しますか？')) return;
+    setFollowBusy(true);
+    setFollowError('');
+    try {
+      const response = await fetch(`${API}/users/${encodeURIComponent(userId)}/follow`, {
+        method: undo ? 'DELETE' : 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(`フォロー操作に失敗しました（HTTP ${response.status}）`);
+      if (undo) setFollowStatus(null);
+      else {
+        const data = await response.json() as { follow: { status: 'pending' | 'accepted' } };
+        setFollowStatus(data.follow.status);
+      }
+    } catch (e) {
+      setFollowError(e instanceof Error ? e.message : 'フォロー操作に失敗しました');
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
   async function loadMore() {
     if (!postsCursor || !profile || moreBusy) return;
     setMoreBusy(true);
@@ -125,6 +182,18 @@ export default function UserProfile({
           <h1 className="text-xl font-bold">
             {profile.display_name || 'プロフィール未設定'}
           </h1>
+          {followStatus !== 'self' && (
+            <div className="mt-4">
+              <button type="button" onClick={() => void changeFollow()}
+                disabled={followLoading || followBusy}
+                className="px-4 py-2 rounded-lg bg-teal-700 text-white text-sm disabled:opacity-50">
+                {followBusy ? '処理中...' : followLoading ? '確認中...' :
+                  followStatus === 'pending' ? '申請を取り消す' :
+                  followStatus === 'accepted' ? 'フォローを解除' : 'フォローする'}
+              </button>
+              {followError && <p role="alert" className="mt-2 text-sm text-red-600">{followError}</p>}
+            </div>
+          )}
           <p className="mt-3 text-sm">
             {profile.instruments?.join('・') || '楽器未設定'}
           </p>
