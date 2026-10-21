@@ -110,7 +110,7 @@ export default function PostDetail({ postId, navigate }: Props) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => navigate(fromMyPage ? 'myPage' : 'community')}
+      <button onClick={() => navigate(fromNotifications ? 'notifications' : fromMyPage ? 'myPage' : 'community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
         <ArrowLeft size={18}/> {fromNotifications ? '通知へ戻る' : fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
