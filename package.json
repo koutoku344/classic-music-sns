@@ -42,7 +42,8 @@
     "test:playwright:follow": "playwright test followers-feedback.spec.mjs",
     "test:playwright:notifications-feedback": "playwright test notifications-feedback.spec.mjs",
     "test:playwright:notifications-reply": "playwright test notifications-reply-likes.spec.mjs",
-    "test:playwright:notifications-read-state": "playwright test notifications-mark-read.spec.mjs"
+    "test:playwright:notifications-read-state": "playwright test notifications-mark-read.spec.mjs",
+    "test:playwright:notifications-ui": "playwright test notifications-ui-read.spec.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
