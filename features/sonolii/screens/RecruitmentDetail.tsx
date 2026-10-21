@@ -1,87 +1,70 @@
+import { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
-import { recruitments } from '../data';
-import Avatar from '../components/Avatar';
-import { ArrowLeft, MapPin, Activity, Users, Music2, Send, Check } from 'lucide-react';
+import { getRecruitment, applyRecruitment, cancelRecruitmentApplication, listRecruitmentApplicants, decideRecruitmentApplicant, setRecruitmentStatus, deleteRecruitment, type RecruitmentRow, type ApplicantRow } from '../lib/recruitmentApi';
+import { ArrowLeft } from 'lucide-react';
 
-interface RecruitmentDetailProps {
-  recruitmentId: string;
-  navigate: (s: ScreenName, params?: Record<string, string>) => void;
-}
-
-export default function RecruitmentDetail({ recruitmentId, navigate }: RecruitmentDetailProps) {
-  const r = recruitments.find((x) => x.id === recruitmentId) || recruitments[0];
-
-  return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => navigate('community')} className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
-        <ArrowLeft size={18} /> コミュニティ
-      </button>
-
-      <div className="bg-white rounded-2xl border border-ink-100 p-6 animate-slide-up">
-        <div className="flex items-center gap-3 mb-5">
-          <Avatar user={r.user} size="lg" onClick={() => navigate('userProfile', { id: r.user.id })} />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-ink-900 text-base">{r.user.name}</p>
-            <p className="text-sm text-ink-400">{r.user.instrument} · {r.user.region} · {r.createdAt}</p>
-          </div>
-          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${r.status === 'open' ? 'bg-sage-100 text-sage-700 border-sage-300' : 'bg-ink-100 text-ink-500 border-ink-200'}`}>
-            {r.status === 'open' ? '募集中' : '募集終了'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 mb-4 text-base">
-          <Music2 size={18} className="text-teal-600" />
-          <span className="font-serif text-lg text-ink-800">
-            <span className="italic text-ink-600">{r.piece.composer}</span> / {r.piece.title}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <Tag icon={Music2} label="楽器" value={r.instrument} />
-          <Tag icon={MapPin} label="地域" value={r.region} />
-          <Tag icon={Activity} label="レベル" value={r.level} />
-          <Tag icon={Users} label="目的" value={r.purpose} />
-        </div>
-
-        <div className="bg-ink-50 rounded-xl p-4 mb-5">
-          <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{r.description}</p>
-        </div>
-
-        <div className="flex items-center justify-between pt-4 border-t border-ink-100">
-          <span className="text-sm text-ink-500">応募 {r.applicants}件</span>
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm">
-            <Send size={16} /> 応募する
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-6 bg-white rounded-2xl border border-ink-100 p-5">
-        <h2 className="font-serif text-lg font-semibold text-ink-900 mb-4">応募者（{r.applicants}件）</h2>
-        <div className="space-y-3">
-          {[1, 2, 3].slice(0, r.applicants).map((i) => (
-            <div key={i} className="flex items-center gap-3 bg-ink-50 rounded-xl p-3">
-              <div className="w-8 h-8 rounded-full bg-ink-200" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-ink-700">応募者 {i}</p>
-                <p className="text-xs text-ink-400">Piano · 東京</p>
-              </div>
-              <button className="flex items-center gap-1 text-xs text-teal-700 font-medium hover:text-teal-800">
-                <Check size={14} /> 承認
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Tag({ icon: Icon, label, value }: { icon: typeof Music2; label: string; value: string }) {
-  return (
-    <div className="bg-ink-50 rounded-lg p-3 text-center">
-      <Icon size={16} className="mx-auto text-teal-600 mb-1" />
-      <p className="text-xs text-ink-400">{label}</p>
-      <p className="text-sm font-medium text-ink-800 mt-0.5">{value}</p>
-    </div>
-  );
+export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentId:string;navigate:(s:ScreenName,params?:Record<string,string>)=>void}) {
+ const {getToken,userId:clerkId}=useAuth();
+ const [row,setRow]=useState<RecruitmentRow|null>(null);
+ const [applicants,setApplicants]=useState<ApplicantRow[]>([]);
+ const [owner,setOwner]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState('');
+ const [loading,setLoading]=useState(true);
+ async function refresh(){
+   const value=await getRecruitment(recruitmentId,getToken);
+   setRow(value);
+   // Own applicant list is private: 404 is expected for a non-owner.
+   // Compare via explicit /me/profile ownership when available.
+   const token=await getToken();
+   if(token){
+    const {API_BASE}=await import('../lib/repertoireApi');
+    const response=await fetch(API_BASE+'/me/profile',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    if(response.ok){const profile=await response.json() as {profile?:{user_id?:string}};const isOwner=profile.profile?.user_id===value.user_id;setOwner(isOwner);
+      if(isOwner)setApplicants(await listRecruitmentApplicants(recruitmentId,getToken));
+    }
+   }
+ }
+ useEffect(()=>{let active=true;setLoading(true);void getRecruitment(recruitmentId,getToken).then(async value=>{
+  if(!active)return;setRow(value);
+  const token=await getToken();
+  if(!token||!active)return;
+  const {API_BASE}=await import('../lib/repertoireApi');
+  const res=await fetch(API_BASE+'/me/profile',{headers:{Authorization:'Bearer '+token}});
+  if(!res.ok||!active)return;
+  const info=await res.json() as {profile?:{user_id?:string}};
+  const mine=info.profile?.user_id===value.user_id;
+  setOwner(mine);
+  if(mine){const items=await listRecruitmentApplicants(recruitmentId,getToken);if(active)setApplicants(items);}
+ }).catch(e=>{if(active)setError(e instanceof Error?e.message:'募集を表示できませんでした。');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[recruitmentId,getToken,clerkId]);
+ async function perform(action:()=>Promise<void>){if(busy)return;setBusy(true);setError('');try{await action();await refresh();}catch(e){setError(e instanceof Error?e.message:'操作に失敗しました。');}finally{setBusy(false);}}
+ if(loading)return <div className="max-w-2xl mx-auto p-6">募集を読み込み中...</div>;
+ return <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-5">
+  <button onClick={()=>navigate('community')} className="flex gap-2 items-center text-sm text-ink-600"><ArrowLeft size={18}/> コミュニティ</button>
+  {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
+  {!row?<p>この募集は見つかりません。</p>:<>
+   <div className="bg-white border border-ink-100 rounded-2xl p-5 space-y-4">
+    <div className="flex items-center justify-between gap-2"><button onClick={()=>navigate('userProfile',{id:row.user_id})} className="font-medium text-teal-700">{row.display_name}</button><span className="text-xs">{row.status==='open'?'募集中':'募集終了'}</span></div>
+    <h1 className="text-xl font-serif">{row.composer_name&&row.piece_title?`${row.composer_name} / ${row.piece_title}`:'曲目未指定'}</h1>
+    <div className="text-sm space-y-1 text-ink-600"><p>楽器：{row.instruments.join('・')}</p><p>地域：{row.regions.join('・')}</p><p>レベル：{row.level}　目的：{row.purpose}</p></div>
+    <p className="whitespace-pre-wrap text-sm text-ink-800">{row.description}</p>
+    <p className="text-xs text-ink-500">承認済み応募：{row.applicants}件</p>
+    {owner? <div className="flex flex-wrap gap-2">
+      <button disabled={busy} onClick={()=>void perform(()=>setRecruitmentStatus(row.id,row.status==='open'?'closed':'open',getToken))} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm">{row.status==='open'?'募集を終了':'募集を再開'}</button>
+      <button disabled={busy} onClick={()=>{if(window.confirm('この募集と応募履歴を削除しますか？'))void perform(async()=>{await deleteRecruitment(row.id,getToken);navigate('community');});}} className="px-4 py-2 border border-red-300 text-red-700 rounded-lg text-sm">募集を削除</button>
+     </div>:
+     <div>
+      {row.my_application==='pending'? <button disabled={busy} onClick={()=>void perform(()=>cancelRecruitmentApplication(row.id,getToken))} className="px-4 py-2 border rounded-lg">応募を取り消す</button>:
+       row.my_application==='accepted'?<p className="text-sm text-teal-700">応募が承認されました。メッセージ機能はSTEP13で対応します。</p>:
+       row.status==='open'?<button disabled={busy} onClick={()=>void perform(()=>applyRecruitment(row.id,getToken))} className="px-4 py-2 bg-teal-600 text-white rounded-lg">応募する</button>:<p className="text-sm text-ink-500">現在募集を受け付けていません。</p>}
+     </div>}
+   </div>
+   {owner&&<section className="bg-white border border-ink-100 rounded-2xl p-5 space-y-3"><h2 className="font-semibold">応募者管理（{applicants.length}件）</h2>{applicants.length===0&&<p className="text-sm text-ink-500">応募はまだありません。</p>}
+    {applicants.map(a=><div key={a.id} className="flex items-center gap-2 flex-wrap border-b py-2"><button onClick={()=>navigate('userProfile',{id:a.applicant_id})} className="text-sm text-teal-700">{a.display_name}</button><span className="text-xs text-ink-500">{a.status==='pending'?'審査待ち':a.status==='accepted'?'承認済み':'却下済み'}</span>
+     {a.status==='pending'&&row.status==='open'&&<><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'accept',getToken))} className="text-xs text-teal-700">承認</button><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'reject',getToken))} className="text-xs text-red-600">却下</button></>}
+    </div>)}
+   </section>}
+  </>}
+ </div>;
 }
