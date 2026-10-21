@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createClerkClient } from "@clerk/backend";
 
 // Pre-release-only integration test. Current deployment may become production later.
 // Refuses CI, requires an explicit manual opt-in and exact current API endpoint.
@@ -34,25 +35,44 @@ function settings() {
     expectedUrl,
     "Only the current pre-release Sonolii API URL is supported"
   );
-  assert.ok(e.SONOLII_TEST_ACTOR_TOKEN && e.SONOLII_TEST_OWNER_TOKEN);
+  assert.ok(e.CLERK_SECRET_KEY, "Set CLERK_SECRET_KEY locally; never commit it");
   assert.ok(
-    e.SONOLII_TEST_ACTOR_TOKEN !== e.SONOLII_TEST_OWNER_TOKEN,
-    "Actor and owner must use different test accounts"
+    /^sess_[A-Za-z0-9]+$/.test(e.SONOLII_TEST_ACTOR_SESSION_ID ?? ""),
+    "Set SONOLII_TEST_ACTOR_SESSION_ID to the actor's active Clerk session ID"
+  );
+  assert.ok(
+    /^sess_[A-Za-z0-9]+$/.test(e.SONOLII_TEST_OWNER_SESSION_ID ?? ""),
+    "Set SONOLII_TEST_OWNER_SESSION_ID to the owner's active Clerk session ID"
+  );
+  assert.notEqual(
+    e.SONOLII_TEST_ACTOR_SESSION_ID,
+    e.SONOLII_TEST_OWNER_SESSION_ID,
+    "Actor and owner must use different sessions"
   );
   assert.ok(UUID.test(e.SONOLII_TEST_OWNER_ID ?? ""), "Invalid owner UUID");
   assert.ok(UUID.test(e.SONOLII_TEST_POST_ID ?? ""), "Invalid test post UUID");
 
   return {
     base: expectedUrl,
-    actor: e.SONOLII_TEST_ACTOR_TOKEN,
-    owner: e.SONOLII_TEST_OWNER_TOKEN,
+    actorSessionId: e.SONOLII_TEST_ACTOR_SESSION_ID,
+    ownerSessionId: e.SONOLII_TEST_OWNER_SESSION_ID,
+    clerk: createClerkClient({ secretKey: e.CLERK_SECRET_KEY }),
     ownerId: e.SONOLII_TEST_OWNER_ID,
     postId: e.SONOLII_TEST_POST_ID,
   };
 }
 
-async function api(c, token, method, path, data) {
-  const headers = { Authorization: "Bearer " + token };
+// Mint a new short-lived Clerk session JWT immediately before EVERY API call.
+// Never log or persist Clerk secret keys, session tokens, or session IDs.
+async function api(c, sessionId, method, path, data) {
+  const session = await c.clerk.sessions.getSession(sessionId);
+  assert.equal(session.status, "active", "Test Clerk session is not active");
+
+  const sessionToken = await c.clerk.sessions.getToken(sessionId);
+  const jwt = sessionToken.jwt;
+  assert.ok(jwt, "Clerk did not return a session JWT");
+
+  const headers = { Authorization: "Bearer " + jwt };
   if (data !== undefined) headers["Content-Type"] = "application/json";
   const response = await fetch(c.base + path, {
     method,
@@ -72,7 +92,7 @@ function status(result, code, label) {
 test("STEP11 accepted follower can post comments and likes", async () => {
   // Validate all test-only settings before making any network request.
   const c = settings();
-  const A = c.actor, B = c.owner, uid = c.ownerId, pid = c.postId;
+  const A = c.actorSessionId, B = c.ownerSessionId, uid = c.ownerId, pid = c.postId;
   // Verify token identities through the authenticated endpoint, before writes.
   const actorSelf = await api(c, A, "GET", "/me/profile");
   status(actorSelf, 200, "Actor identity");
