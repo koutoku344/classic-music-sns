@@ -64,27 +64,13 @@ export async function handleNotifications(
     const rows = await sql`
       SELECT
         n.id, n.type, n.created_at, n.read_at,
-        -- Only include actor profile data when presently visible to recipient.
-        CASE WHEN actor.user_id IS NOT NULL
-          AND (actor.visibility = 'public'
-            OR actor.user_id = ${userId}::uuid
-            OR (actor.visibility = 'followers' AND EXISTS (
-              SELECT 1 FROM public.follows af
-              WHERE af.followee_id = actor.user_id
-                AND af.follower_id = ${userId}::uuid
-                AND af.status = 'accepted'
-            )))
-          THEN actor.display_name ELSE NULL END AS actor_name,
-        CASE WHEN actor.user_id IS NOT NULL
-          AND (actor.visibility = 'public'
-            OR actor.user_id = ${userId}::uuid
-            OR (actor.visibility = 'followers' AND EXISTS (
-              SELECT 1 FROM public.follows af
-              WHERE af.followee_id = actor.user_id
-                AND af.follower_id = ${userId}::uuid
-                AND af.status = 'accepted'
-            )))
-          THEN actor.user_id ELSE NULL END AS actor_id,
+        actor.display_name AS actor_name,
+        actor.user_id AS actor_id,
+        CASE WHEN n.type = 'follow_request'
+          AND f.id IS NOT NULL AND f.status = 'pending'
+          AND f.followee_id = ${userId}::uuid
+          AND f.follower_id = n.actor_user_id
+          THEN f.id ELSE NULL END AS pending_follow_id,
         -- Apply exactly the post read-visibility rule at REQUEST time.
         -- Deleted/inaccessible posts must never yield an active link.
         CASE WHEN p.id IS NOT NULL AND owner_pr.user_id IS NOT NULL
@@ -103,6 +89,7 @@ export async function handleNotifications(
           'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at
       FROM public.notifications n
       LEFT JOIN public.profiles actor ON actor.user_id = n.actor_user_id
+      LEFT JOIN public.follows f ON f.id = n.follow_id
       LEFT JOIN public.posts p ON p.id = n.post_id
       LEFT JOIN public.profiles owner_pr ON owner_pr.user_id = p.user_id
       WHERE n.recipient_user_id = ${userId}::uuid
@@ -121,6 +108,7 @@ export async function handleNotifications(
       actorName: row.actor_name,
       actorId: row.actor_id,
       targetPostId: row.target_post_id,
+      pendingFollowId: row.pending_follow_id,
     }));
     const last = rows[Math.min(rows.length, limit) - 1];
     return reply({
