@@ -143,7 +143,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     case "createRecruitment": content = <CreateRecruitment navigate={navigate} />; break;
     case "search": content = <Search navigate={navigate} />; break;
     case "messages": content = <Messages navigate={navigate} />; break;
-    case "notifications": content = <Notifications />; break;
+    case "notifications": content = <Notifications navigate={navigate} />; break;
     case "conversation": content = <Conversation conversationId={id} navigate={navigate} />; break;
     case "userProfile": content = <UserProfile userId={id} navigate={navigate} />; break;
     case "myPage": content = <MyPage navigate={navigate} />; break;
