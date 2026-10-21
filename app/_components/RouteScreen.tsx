@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/react";
+import { getUnreadNotificationCount } from "@/features/sonolii/lib/notificationApi";
 import type { ScreenName } from "@/features/sonolii/types";
-import { conversations, notifications } from "@/features/sonolii/data";
+import { conversations } from "@/features/sonolii/data";
 import Header from "@/features/sonolii/components/Header";
 import BottomNav from "@/features/sonolii/components/BottomNav";
 import Landing from "@/features/sonolii/screens/Landing";
@@ -62,6 +65,20 @@ type RouteScreenProps = {
 
 export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   const router = useRouter();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setUnreadNotifications(0);
+      return;
+    }
+    let active = true;
+    void getUnreadNotificationCount(getToken)
+      .then(value => { if (active) setUnreadNotifications(value); })
+      .catch(() => { if (active) setUnreadNotifications(0); });
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn, getToken, screen]);
 
   const navigate = (next: ScreenName, params?: Record<string, string>) => {
     const targetId = params?.id ?? "";
@@ -94,7 +111,6 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   if (screen === "landing") return <Landing navigate={navigate} />;
   if (screen === "auth") return <Auth navigate={navigate} />;
 
-  const unreadNotifications = notifications.filter((n) => !n.read).length;
   const unreadMessages = conversations.filter((c) => c.unread).length;
 
   let content: React.ReactNode;
