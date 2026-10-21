@@ -47,5 +47,23 @@ test("STEP11 notifications inbox and unread count (read only)", async ({ page })
     expect(typeof item.type).toBe("string");
     expect(typeof item.createdAt).toBe("string");
     expect("postId" in item || "commentId" in item || "body" in item).toBe(false);
+    // Optional navigation details must be absent or visible to this recipient.
+    if (item.actorId !== undefined) {
+      expect(item.actorId === null || typeof item.actorId === "string").toBe(true);
+      expect(item.actorName === null || typeof item.actorName === "string").toBe(true);
+      if (item.actorId !== null) {
+        const profile = await get(page, "/profiles/" + item.actorId);
+        expect(profile.status, "Actor profile link must resolve").toBe(200);
+        expect(profile.body?.profile?.restricted, "Linked actor must be visible").toBe(false);
+      }
+    }
+    if (item.targetPostId !== undefined) {
+      expect(item.targetPostId === null || typeof item.targetPostId === "string").toBe(true);
+      if (item.targetPostId !== null) {
+        const post = await get(page, "/posts/" + item.targetPostId);
+        expect(post.status, "Notification post link must resolve").toBe(200);
+        expect(post.body?.post?.id).toBe(item.targetPostId);
+      }
+    }
   }
 });
