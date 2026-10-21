@@ -47,6 +47,10 @@ test("STEP11 notifications inbox and unread count (read only)", async ({ page })
     expect(typeof item.type).toBe("string");
     expect(typeof item.createdAt).toBe("string");
     expect("postId" in item || "commentId" in item || "body" in item).toBe(false);
+    // The enriched backend must expose the new nullable keys after deployment.
+    expect("actorId" in item).toBe(true);
+    expect("actorName" in item).toBe(true);
+    expect("targetPostId" in item).toBe(true);
     // Optional navigation details must be absent or visible to this recipient.
     if (item.actorId !== undefined) {
       expect(item.actorId === null || typeof item.actorId === "string").toBe(true);
