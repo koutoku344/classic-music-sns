@@ -7,7 +7,7 @@ const INST = ["Piano","Violin","Cello","Viola","Flute","Clarinet","Oboe","Trumpe
 const REGION = ["東京","大阪","神奈川","京都","愛知","兵庫","福岡","オンライン"];
 const resp=(v:unknown,s:number,h:Record<string,string>)=>Response.json(v,{status:s,headers:{"Cache-Control":"no-store",...h}});
 const empty=(h:Record<string,string>)=>new Response(null,{status:204,headers:{"Cache-Control":"no-store",...h}});
-export const isRecruitmentRoute=(path:string)=>path==="/recruitments"||/^\/recruitments\/[^/]+(?:\/applications(?:\/[^/]+(?:\/(?:accept|reject))?)?)?$/.test(path);
+export const isRecruitmentRoute=(path:string)=>path==="/recruitments"||/^\/recruitments\/[^/]+(?:\/(?:applications(?:\/[^/]+(?:\/(?:accept|reject))?)?|status))?$/.test(path);
 export const isPublicRecruitmentRead=(method:string,path:string)=>method==="GET" && (path==="/recruitments"||/^\/recruitments\/[^/]+$/.test(path));
 type RecruitmentInput={pieceId:string|null;instruments:string[];regions:string[];level:string;purpose:string;description:string};
 export function parseRecruitment(raw:unknown):RecruitmentInput|null {
@@ -29,7 +29,7 @@ async function jsonBody(request:Request):Promise<unknown>{
 }
 export async function handleRecruitments(request:Request,sql:Sql,userId:string|null,headers:Record<string,string>):Promise<Response>{
  const url=new URL(request.url),p=url.pathname,m=request.method;
- const match=p.match(/^\/recruitments\/([^/]+)(?:\/applications(?:\/([^/]+)(?:\/(accept|reject))?)?)?$/);
+ const match=p.match(/^\/recruitments\/([^/]+)(?:\/(?:applications(?:\/([^/]+)(?:\/(accept|reject))?)?|status))?$/);
  const id=match?.[1], app=match?.[2], action=match?.[3];
  if(id&&!idOK(id))return resp({error:"not_found"},404,headers);
  if(app&&!idOK(app))return resp({error:"not_found"},404,headers);
@@ -68,7 +68,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   return rows.length?resp({recruitment:rows[0]},200,headers):resp({error:"not_found"},404,headers);
  }
  if(!userId)return resp({error:"unauthorized"},401,headers);
- if((m==="POST"&&p==="/recruitments")||(m==="PATCH"&&id&&!app)){
+ if((m==="POST"&&p==="/recruitments")||(m==="PATCH"&&id&&!app&&p===`/recruitments/${id}`)){
   let input:RecruitmentInput|null=null;try{input=parseRecruitment(await jsonBody(request));}catch{}
   if(!input)return resp({error:"invalid_input"},400,headers);
   const {pieceId,instruments,regions,level,purpose,description}=input;
@@ -130,8 +130,11 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   `;
   return rows.length?empty(headers):resp({error:"not_found_or_decided"},404,headers);
  }
- if(m==="PATCH"&&id&&!app&&p===`/recruitments/${id}/status`){
-  // Reserved; handled below through separate route recognition in next revision.
+ if(m==="PATCH"&&id&&p===`/recruitments/${id}/status`){
+  let body:unknown;try{body=await jsonBody(request);}catch{return resp({error:"invalid_json"},400,headers);}
+  if(!body||typeof body!=="object"||Array.isArray(body)||Object.keys(body).length!==1||!["open","closed"].includes((body as {status:string}).status))return resp({error:"invalid_status"},400,headers);
+  const rows=await sql`UPDATE public.recruitments SET status=${(body as {status:string}).status},updated_at=now() WHERE id=${id}::uuid AND user_id=${userId}::uuid RETURNING id`;
+  return rows.length?empty(headers):resp({error:"not_found"},404,headers);
  }
  if(m==="DELETE"&&id&&!app&&p===`/recruitments/${id}`){
   const rows=await sql`DELETE FROM public.recruitments WHERE id=${id}::uuid AND user_id=${userId}::uuid RETURNING id`;
