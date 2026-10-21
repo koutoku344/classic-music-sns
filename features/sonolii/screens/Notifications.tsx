@@ -181,7 +181,7 @@ export default function Notifications({ navigate }: {
                     : undefined}
                   className={`flex items-start gap-3 p-4 ${!item.readAt ? 'bg-teal-50/40' : ''} ${actionable
                     ? 'cursor-pointer hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600'
-                    : ''}`}>
+                    : 'text-ink-400'}`}>
                   <div className="flex-shrink-0 pt-1"><NoticeIcon type={item.type} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-ink-800">
@@ -191,9 +191,6 @@ export default function Notifications({ navigate }: {
                     <time className="text-xs text-ink-400" dateTime={item.createdAt}>
                       {new Date(item.createdAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
                     </time>
-                    {!actionable && (
-                      <p className="text-xs text-ink-400 mt-1">現在、この通知の詳細は閲覧できません</p>
-                    )}
                   </div>
                   {!item.readAt && (
                     <button type="button"
