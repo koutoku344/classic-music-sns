@@ -182,6 +182,7 @@ test("STEP11 read-all only when there are no pre-existing unread notifications",
   const b = await bContext.newPage();
   let createdFollow = false;
   let commentId = null;
+  let skipReason = null;
   const errors = [];
   try {
     await login(a, c.actorEmail);
@@ -218,20 +219,19 @@ test("STEP11 read-all only when there are no pre-existing unread notifications",
     check(await api(a, "GET", "/posts/" + c.postId), 200, "Follower access");
 
     if (await count(b) !== 0) {
-      test.skip(true,
-        "Existing unread notifications must not be marked read by this test; use a clean dedicated recipient");
+      skipReason = "Existing unread notifications must not be marked read by this test; use a clean dedicated recipient";
+    } else {
+      const comment = await api(a, "POST", "/posts/" + c.postId + "/comments", {
+        body: "STEP11 read-all test (only when recipient unread baseline is zero)",
+      });
+      if (UUID.test(comment.body?.comment?.id ?? "")) commentId = comment.body.comment.id;
+      check(comment, 201, "Create new comment");
+      expect(UUID.test(commentId ?? "")).toBe(true);
+      expect(await count(b)).toBe(1);
+      check(await api(b, "POST", "/me/notifications/read-all"),
+        204, "Read-all");
+      expect(await count(b)).toBe(0);
     }
-
-    const comment = await api(a, "POST", "/posts/" + c.postId + "/comments", {
-      body: "STEP11 read-all test (only when recipient unread baseline is zero)",
-    });
-    if (UUID.test(comment.body?.comment?.id ?? "")) commentId = comment.body.comment.id;
-    check(comment, 201, "Create new comment");
-    expect(UUID.test(commentId ?? "")).toBe(true);
-    expect(await count(b)).toBe(1);
-    check(await api(b, "POST", "/me/notifications/read-all"),
-      204, "Read-all");
-    expect(await count(b)).toBe(0);
   } catch (err) {
     errors.push(err);
   } finally {
@@ -253,4 +253,5 @@ test("STEP11 read-all only when there are no pre-existing unread notifications",
     throw new AggregateError(errors,
       "Read-all test/cleanup failed; inspect fixture");
   }
+  if (skipReason) test.skip(true, skipReason);
 });
