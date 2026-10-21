@@ -27,10 +27,12 @@ export default function PostDetail({ postId, navigate }: Props) {
   const [timestampRequest, setTimestampRequest] = useState<{ seconds: number; id: number } | null>(null);
   // SSR and the first browser render must agree. Read the URL after hydration.
   const [fromMyPage, setFromMyPage] = useState(false);
+  const [fromNotifications, setFromNotifications] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setFromMyPage(params.get('from') === 'my-page');
+    setFromNotifications(params.get('from') === 'notifications');
     const commentAt = params.get('commentAt');
     if (commentAt !== null && /^\d+$/.test(commentAt)) {
       const seconds = Number(commentAt);
@@ -110,7 +112,7 @@ export default function PostDetail({ postId, navigate }: Props) {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <button onClick={() => navigate(fromMyPage ? 'myPage' : 'community')}
         className="flex items-center gap-1.5 text-ink-600 hover:text-ink-900 mb-4 text-sm font-medium">
-        <ArrowLeft size={18}/> {fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
+        <ArrowLeft size={18}/> {fromNotifications ? '通知へ戻る' : fromMyPage ? 'マイページへ戻る' : 'コミュニティへ戻る'}
       </button>
 
       {loading && <p role="status" className="text-sm text-ink-500">投稿を読み込み中...</p>}
