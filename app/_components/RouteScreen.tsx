@@ -69,6 +69,21 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let active = true;
+    const refresh = () => {
+      void getUnreadNotificationCount(getToken)
+        .then(value => { if (active) setUnreadNotifications(value); })
+        .catch(() => { if (active) setUnreadNotifications(0); });
+    };
+    window.addEventListener("sonolii:notification-read", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("sonolii:notification-read", refresh);
+    };
+  }, [isLoaded, isSignedIn, getToken]);
+
+  useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setUnreadNotifications(0);
       return;
