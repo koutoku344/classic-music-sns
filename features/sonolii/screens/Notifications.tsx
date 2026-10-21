@@ -1,7 +1,7 @@
 import type { ScreenName } from '../types';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
-import { Bell, Heart, MessageCircle, UserPlus, Check, RefreshCw } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Check, RefreshCw, ChevronRight } from 'lucide-react';
 import {
   listNotifications, getUnreadNotificationCount, markNotificationRead,
   markAllNotificationsRead, type NotificationRow,
@@ -116,6 +116,23 @@ export default function Notifications({ navigate }: {
     }
   };
 
+  const openNotification = (item: NotificationRow) => {
+    if (['follow', 'follow_request', 'follow_accepted'].includes(item.type)) {
+      if (item.actorId) navigate('userProfile', { id: item.actorId, from: 'notifications' });
+      return;
+    }
+    if (['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type)
+      && item.targetPostId) {
+      navigate('postDetail', { id: item.targetPostId, from: 'notifications' });
+    }
+  };
+
+  const canOpen = (item: NotificationRow) =>
+    ['follow', 'follow_request', 'follow_accepted'].includes(item.type)
+      ? !!item.actorId
+      : ['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type)
+        && !!item.targetPostId;
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-start justify-between gap-3 mb-5">
@@ -145,37 +162,53 @@ export default function Notifications({ navigate }: {
       {isSignedIn && !loading && (
         <>
           <div className="bg-white rounded-2xl border border-ink-100 divide-y divide-ink-100">
-            {items.map(item => (
-              <div key={item.id} className={`flex items-start gap-3 p-4 ${!item.readAt ? 'bg-teal-50/40' : ''}`}>
-                <div className="flex-shrink-0 pt-1"><NoticeIcon type={item.type} /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-ink-800">
-                    {item.actorName ? <span className="font-semibold">{item.actorName}さんが </span> : null}
-                    {labels[item.type] ?? '新しいお知らせがあります'}
-                  </p>
-                  <div className="flex items-center gap-3 mt-1 text-xs">
-                    {item.targetPostId && (
-                      <button type="button" onClick={() => navigate('postDetail', { id: item.targetPostId! })}
-                        className="text-teal-700 hover:underline">投稿を見る</button>
-                    )}
-                    {item.actorId && (
-                      <button type="button" onClick={() => navigate('userProfile', { id: item.actorId! })}
-                        className="text-teal-700 hover:underline">プロフィールを見る</button>
+            {items.map(item => {
+              const actionable = canOpen(item);
+              return (
+                <div key={item.id}
+                  role={actionable ? 'link' : undefined}
+                  tabIndex={actionable ? 0 : undefined}
+                  onClick={actionable ? () => openNotification(item) : undefined}
+                  onKeyDown={actionable ? event => {
+                    if (event.target === event.currentTarget
+                      && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      openNotification(item);
+                    }
+                  } : undefined}
+                  aria-label={actionable
+                    ? `${item.actorName ?? 'ユーザー'}: ${labels[item.type] ?? '通知'}を開く`
+                    : undefined}
+                  className={`flex items-start gap-3 p-4 ${!item.readAt ? 'bg-teal-50/40' : ''} ${actionable
+                    ? 'cursor-pointer hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600'
+                    : ''}`}>
+                  <div className="flex-shrink-0 pt-1"><NoticeIcon type={item.type} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-ink-800">
+                      {item.actorName ? <span className="font-semibold">{item.actorName}さんが </span> : null}
+                      {labels[item.type] ?? '新しいお知らせがあります'}
+                    </p>
+                    <time className="text-xs text-ink-400" dateTime={item.createdAt}>
+                      {new Date(item.createdAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </time>
+                    {!actionable && (
+                      <p className="text-xs text-ink-400 mt-1">現在、この通知の詳細は閲覧できません</p>
                     )}
                   </div>
-                  <time className="text-xs text-ink-400" dateTime={item.createdAt}>
-                    {new Date(item.createdAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
-                  </time>
+                  {!item.readAt && (
+                    <button type="button"
+                      onClick={event => { event.stopPropagation(); void markRead(item); }}
+                      onKeyDown={event => event.stopPropagation()}
+                      disabled={!!busyId || allBusy}
+                      className="flex items-center gap-1 text-xs text-teal-700 hover:underline disabled:opacity-50"
+                      aria-label="この通知を既読にする">
+                      <Check size={15} /> 既読
+                    </button>
+                  )}
+                  {actionable && <ChevronRight size={18} aria-hidden="true" className="text-ink-400 flex-shrink-0 mt-1" />}
                 </div>
-                {!item.readAt && (
-                  <button type="button" onClick={() => void markRead(item)} disabled={!!busyId || allBusy}
-                    className="flex items-center gap-1 text-xs text-teal-700 hover:underline disabled:opacity-50"
-                    aria-label="この通知を既読にする">
-                    <Check size={15} /> 既読
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {items.length === 0 && (
               <div className="text-center py-16">
                 <Bell size={32} className="mx-auto text-ink-300 mb-2" />
@@ -190,7 +223,7 @@ export default function Notifications({ navigate }: {
             </button>
           )}
           <p className="mt-4 text-xs text-ink-400">
-            公開範囲の変更や削除により閲覧できなくなった投稿・プロフィールへのリンクは表示されません。
+            通知を押すと対象の投稿またはプロフィールに移動します。閲覧権限がない場合は移動できません。
           </p>
         </>
       )}
