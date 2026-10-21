@@ -101,7 +101,7 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     if (next === "postDetail") {
       href = `/posts/${targetId}`;
       const query = new URLSearchParams();
-      if (params?.from === "my-page") query.set("from", "my-page");
+      if (params?.from === "my-page" || params?.from === "notifications") query.set("from", params.from);
       if (params?.commentAt && /^\d+$/.test(params.commentAt)) {
         query.set("commentAt", params.commentAt);
       }
@@ -118,7 +118,10 @@ export default function RouteScreen({ screen, id = "" }: RouteScreenProps) {
     }
     if (next === "recruitmentDetail") href = `/recruitments/${targetId}`;
     if (next === "conversation") href = `/messages/${targetId}`;
-    if (next === "userProfile") href = `/users/${targetId}`;
+    if (next === "userProfile") {
+      href = `/users/${targetId}`;
+      if (params?.from === "notifications") href += "?from=notifications";
+    }
     router.push(href);
     window.scrollTo(0, 0);
   };
