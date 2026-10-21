@@ -47,3 +47,28 @@ npm run test:step11:read
 - Cron の既読30日後削除についてCloudflare実行ログ確認。
 - 実際のデータ更新テストは上記と分離し、対象ID・事前状態・後片付け・秘密情報を事前に確認してから実施する。
 
+
+## 書き込みを伴うE2E（明示的な許可があるときだけ）
+
+`tests/playwright/step11-follow-ui-write.spec.mjs` を追加。専用A/Bで次をブラウザから検証する。
+
+1. AのプロフィールUIからBへフォロー申請（Bはfollowers）
+2. Bの通知カードで承認
+3. AのプロフィールUIがフォロー済みに変わること
+4. Aから解除し、状態を再取得して確認
+5. 失敗時は、テストで新たに作ったA→B関係に限りDELETEで回復を試行
+
+**注意**: 通知履歴、監査的な履歴は残り得る。事前の関係が `null` であることが必須。ただし `rejected` はAPI上 `null` と表示されるため、専用フィクスチャの既往も別途確認する。公開後の本番環境では実行しない。初回はコードレビューとローカル構文チェックを済ませ、実行対象を確認してから起動すること。
+
+```bash
+node --check tests/playwright/step11-follow-ui-write.spec.mjs
+# ここで止め、対象アカウントと書き込み可否を確認する
+# SONOLII_TEST_PHASE=PRE_RELEASE
+# SONOLII_TEST_WRITE_CONFIRM=I_CONFIRM_TEST_WRITES
+# SONOLII_TEST_API_URL=https://sonolii-api.g57cydy6ks.workers.dev
+# SONOLII_TEST_ACTOR_EMAIL, SONOLII_TEST_OWNER_EMAIL, SONOLII_TEST_OWNER_ID
+# CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY
+# npm run test:step11:write
+```
+
+実行前にPlaywrightの認証設定、専用アカウント、Bのfollowers設定、A→Bの既存関係がないことを確認。認証キーをGitHub・チャットへ貼り付けない。
