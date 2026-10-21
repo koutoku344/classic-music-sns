@@ -7,7 +7,9 @@ import ts from "typescript";
 // Only a type import is used by notifications.ts, so transpiling to JS is safe here.
 const source = readFileSync(new URL("../../backend/src/notifications.ts", import.meta.url), "utf8");
 const js = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  // TypeScript enum exports can be unavailable in some loader combinations.
+  // The numeric values are stable: ESNext=99, ES2022=9.
+  compilerOptions: { module: 99, target: 9 },
 }).outputText;
 const { cleanupExpiredNotifications } = await import(
   "data:text/javascript;base64," + Buffer.from(js).toString("base64")
