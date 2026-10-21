@@ -73,6 +73,7 @@ export default function Notifications() {
       const at = new Date().toISOString();
       setItems(existing => existing.map(n => n.id === item.id ? { ...n, readAt: at } : n));
       setUnread(await getUnreadNotificationCount(getToken));
+      window.dispatchEvent(new Event('sonolii:notification-read'));
     } catch (e) {
       setError(e instanceof Error ? e.message : '既読にできませんでした。');
       await reload();
@@ -89,6 +90,7 @@ export default function Notifications() {
     try {
       await markAllNotificationsRead(getToken);
       await reload();
+      window.dispatchEvent(new Event('sonolii:notification-read'));
     } catch (e) {
       setError(e instanceof Error ? e.message : '一括既読にできませんでした。');
     } finally {
