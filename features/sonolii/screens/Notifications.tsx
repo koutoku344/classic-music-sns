@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/react';
 import { Bell, Heart, MessageCircle, UserPlus, Check, RefreshCw, ChevronRight } from 'lucide-react';
 import {
   listNotifications, getUnreadNotificationCount, markNotificationRead,
-  markAllNotificationsRead, type NotificationRow,
+  markAllNotificationsRead, decideFollowRequest, type NotificationRow,
 } from '../lib/notificationApi';
 
 const labels: Record<string, string> = {
@@ -32,6 +32,7 @@ export default function Notifications({ navigate }: {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [decisionBusyId, setDecisionBusyId] = useState<string | null>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const [allBusy, setAllBusy] = useState(false);
   const [error, setError] = useState('');
@@ -116,6 +117,23 @@ export default function Notifications({ navigate }: {
     }
   };
 
+  const decide = async (item: NotificationRow, decision: 'accept' | 'reject') => {
+    if (!item.pendingFollowId || decisionBusyId) return;
+    setDecisionBusyId(item.id);
+    setError('');
+    try {
+      await decideFollowRequest(item.pendingFollowId, decision, getToken);
+      setItems(existing => existing.map(row =>
+        row.id === item.id ? { ...row, pendingFollowId: null } : row
+      ));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'フォロー申請の処理に失敗しました。');
+      await reload();
+    } finally {
+      setDecisionBusyId(null);
+    }
+  };
+
   const openNotification = (item: NotificationRow) => {
     if (['follow', 'follow_request', 'follow_accepted'].includes(item.type)) {
       if (item.actorId) navigate('userProfile', { id: item.actorId, from: 'notifications' });
@@ -192,6 +210,27 @@ export default function Notifications({ navigate }: {
                       {new Date(item.createdAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
                     </time>
                   </div>
+                  {item.type === 'follow_request' && (
+                    <div className="flex flex-col gap-2 items-end" onClick={event => event.stopPropagation()}>
+                      {item.actorId && (
+                        <button type="button"
+                          className="text-xs text-teal-700 hover:underline"
+                          onClick={() => navigate('userProfile', { id: item.actorId!, from: 'notifications' })}>
+                          プロフィールを見る
+                        </button>
+                      )}
+                      {item.pendingFollowId ? (
+                        <div className="flex gap-2">
+                          <button type="button" disabled={!!decisionBusyId}
+                            onClick={() => void decide(item, 'reject')}
+                            className="px-3 py-1.5 text-xs rounded-lg border border-ink-200 disabled:opacity-50">却下</button>
+                          <button type="button" disabled={!!decisionBusyId}
+                            onClick={() => void decide(item, 'accept')}
+                            className="px-3 py-1.5 text-xs rounded-lg bg-teal-700 text-white disabled:opacity-50">承認</button>
+                        </div>
+                      ) : <span className="text-xs text-ink-400">対応済み・申請取消</span>}
+                    </div>
+                  )}
                   {!item.readAt && (
                     <button type="button"
                       onClick={event => { event.stopPropagation(); void markRead(item); }}
