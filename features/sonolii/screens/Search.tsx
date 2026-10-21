@@ -260,7 +260,7 @@ export default function Search({ navigate }: SearchProps) {
                 key={r.id}
                 recruitment={r}
                 onClick={() => navigate('recruitmentDetail', { id: r.id })}
-                onUserClick={() => navigate('userProfile', { id: r.user.id })}
+                onUserClick={() => navigate('userProfile', { id: r.user_id })}
               />
             ))}
             {!recruitBusy && filteredRecruitments.length === 0 && !recruitError && (
