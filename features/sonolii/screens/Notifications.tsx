@@ -1,3 +1,4 @@
+import type { ScreenName } from '../types';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import { Bell, Heart, MessageCircle, UserPlus, Check, RefreshCw } from 'lucide-react';
@@ -22,7 +23,9 @@ function NoticeIcon({ type }: { type: string }) {
   return <UserPlus size={18} className="text-ink-500" />;
 }
 
-export default function Notifications() {
+export default function Notifications({ navigate }: {
+  navigate: (screen: ScreenName, params?: Record<string, string>) => void;
+}) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -146,7 +149,20 @@ export default function Notifications() {
               <div key={item.id} className={`flex items-start gap-3 p-4 ${!item.readAt ? 'bg-teal-50/40' : ''}`}>
                 <div className="flex-shrink-0 pt-1"><NoticeIcon type={item.type} /></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-ink-800">{labels[item.type] ?? '新しいお知らせがあります'}</p>
+                  <p className="text-sm text-ink-800">
+                    {item.actorName ? <span className="font-semibold">{item.actorName}さんが </span> : null}
+                    {labels[item.type] ?? '新しいお知らせがあります'}
+                  </p>
+                  <div className="flex items-center gap-3 mt-1 text-xs">
+                    {item.targetPostId && (
+                      <button type="button" onClick={() => navigate('postDetail', { id: item.targetPostId! })}
+                        className="text-teal-700 hover:underline">投稿を見る</button>
+                    )}
+                    {item.actorId && (
+                      <button type="button" onClick={() => navigate('userProfile', { id: item.actorId! })}
+                        className="text-teal-700 hover:underline">プロフィールを見る</button>
+                    )}
+                  </div>
                   <time className="text-xs text-ink-400" dateTime={item.createdAt}>
                     {new Date(item.createdAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })}
                   </time>
@@ -174,7 +190,7 @@ export default function Notifications() {
             </button>
           )}
           <p className="mt-4 text-xs text-ink-400">
-            現在は通知の種類と日時のみ表示しています。投稿・ユーザーへのリンクは後続の対応で追加します。
+            公開範囲の変更や削除により閲覧できなくなった投稿・プロフィールへのリンクは表示されません。
           </p>
         </>
       )}
