@@ -27,6 +27,11 @@ export default function UserProfile({
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
 }) {
   const { isLoaded, getToken } = useAuth();
+  const [fromNotifications, setFromNotifications] = useState(false);
+
+  useEffect(() => {
+    setFromNotifications(new URLSearchParams(window.location.search).get('from') === 'notifications');
+  }, [userId]);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -108,7 +113,7 @@ export default function UserProfile({
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <button
         type="button"
-        onClick={() => navigate('community')}
+        onClick={() => navigate(fromNotifications ? 'notifications' : 'community')}
         className="text-sm text-teal-700 mb-4"
       >
         ← 戻る
