@@ -137,3 +137,40 @@ export async function handleNotifications(
 
   return reply({ error: "not_found" }, 404, headers);
 }
+
+
+/**
+ * Daily scheduled retention cleanup: physically remove ONLY read notifications
+ * whose read_at is strictly older than 30 days. Unread rows are never deleted.
+ *
+ * Bounded batches avoid one large transaction; future daily runs drain backlog.
+ * No HTTP route exposes this function.
+ */
+export async function cleanupExpiredNotifications(sql: Sql): Promise<number> {
+  const BATCH_SIZE = 500;
+  const MAX_BATCHES = 10;
+  let deleted = 0;
+
+  for (let batch = 0; batch < MAX_BATCHES; batch++) {
+    const rows = await sql`
+      WITH expired AS (
+        SELECT id
+        FROM public.notifications
+        WHERE read_at < now() - INTERVAL '30 days'
+        ORDER BY read_at ASC, id ASC
+        LIMIT ${BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      )
+      DELETE FROM public.notifications n
+      USING expired
+      WHERE n.id = expired.id
+        AND n.read_at < now() - INTERVAL '30 days'
+      RETURNING n.id
+    `;
+
+    deleted += rows.length;
+    if (rows.length < BATCH_SIZE) break;
+  }
+
+  return deleted;
+}
