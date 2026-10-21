@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
-import { getRecruitment, applyRecruitment, cancelRecruitmentApplication, listRecruitmentApplicants, decideRecruitmentApplicant, setRecruitmentStatus, deleteRecruitment, type RecruitmentRow, type ApplicantRow } from '../lib/recruitmentApi';
+import { getRecruitment, applyRecruitment, cancelRecruitmentApplication, listRecruitmentApplicants, decideRecruitmentApplicant, setRecruitmentStatus, updateRecruitment, deleteRecruitment, type RecruitmentRow, type ApplicantRow } from '../lib/recruitmentApi';
 import { ArrowLeft } from 'lucide-react';
 
 export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentId:string;navigate:(s:ScreenName,params?:Record<string,string>)=>void}) {
@@ -10,6 +10,12 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
  const [applicants,setApplicants]=useState<ApplicantRow[]>([]);
  const [owner,setOwner]=useState(false);
  const [busy,setBusy]=useState(false);
+ const [editing,setEditing]=useState(false);
+ const [editDescription,setEditDescription]=useState('');
+ const [editLevel,setEditLevel]=useState('問わない');
+ const [editPurpose,setEditPurpose]=useState('アンサンブル');
+ const [editInstruments,setEditInstruments]=useState<string[]>([]);
+ const [editRegions,setEditRegions]=useState<string[]>([]);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(true);
  async function refresh(){
@@ -51,6 +57,7 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
     <p className="whitespace-pre-wrap text-sm text-ink-800">{row.description}</p>
     <p className="text-xs text-ink-500">承認済み応募：{row.applicants}件</p>
     {owner? <div className="flex flex-wrap gap-2">
+      {row.status==='open' && <button disabled={busy} onClick={()=>{setEditing(v=>!v);setEditDescription(row.description);setEditLevel(row.level);setEditPurpose(row.purpose);setEditInstruments([...row.instruments]);setEditRegions([...row.regions]);}} className="px-4 py-2 border border-ink-200 rounded-lg text-sm">{editing?'編集を閉じる':'募集内容を編集'}</button>}
       <button disabled={busy} onClick={()=>void perform(()=>setRecruitmentStatus(row.id,row.status==='open'?'closed':'open',getToken))} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm">{row.status==='open'?'募集を終了':'募集を再開'}</button>
       <button disabled={busy} onClick={()=>{if(window.confirm('この募集と応募履歴を削除しますか？'))void perform(async()=>{await deleteRecruitment(row.id,getToken);navigate('community');});}} className="px-4 py-2 border border-red-300 text-red-700 rounded-lg text-sm">募集を削除</button>
      </div>:
@@ -60,6 +67,16 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
        row.status==='open'?<button disabled={busy} onClick={()=>void perform(()=>applyRecruitment(row.id,getToken))} className="px-4 py-2 bg-teal-600 text-white rounded-lg">応募する</button>:<p className="text-sm text-ink-500">現在募集を受け付けていません。</p>}
      </div>}
    </div>
+   {owner&&editing&&row.status==='open'&&<section className="bg-white border border-ink-100 rounded-2xl p-5 space-y-3">
+      <h2 className="font-semibold">募集を編集</h2>
+      <p className="text-xs text-ink-500">曲目は変更せず、募集条件と本文を更新します。</p>
+      <label className="block text-sm">楽器（カンマ区切り）<input className="block w-full border border-ink-200 rounded-lg p-2" value={editInstruments.join(',')} onChange={e=>setEditInstruments(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))}/></label>
+      <label className="block text-sm">地域（カンマ区切り）<input className="block w-full border border-ink-200 rounded-lg p-2" value={editRegions.join(',')} onChange={e=>setEditRegions(e.target.value.split(',').map(x=>x.trim()).filter(Boolean))}/></label>
+      <label className="block text-sm">レベル<select className="block w-full border border-ink-200 rounded-lg p-2" value={editLevel} onChange={e=>setEditLevel(e.target.value)}>{['初級','中級','上級','問わない'].map(v=><option key={v}>{v}</option>)}</select></label>
+      <label className="block text-sm">目的<select className="block w-full border border-ink-200 rounded-lg p-2" value={editPurpose} onChange={e=>setEditPurpose(e.target.value)}>{['アンサンブル','発表会','趣味で合わせ','その他'].map(v=><option key={v}>{v}</option>)}</select></label>
+      <label className="block text-sm">募集内容<textarea className="block w-full border border-ink-200 rounded-lg p-2" rows={4} maxLength={2000} value={editDescription} onChange={e=>setEditDescription(e.target.value)}/></label>
+      <button disabled={busy} className="px-4 py-2 bg-teal-600 text-white rounded-lg" onClick={()=>void perform(async()=>{await updateRecruitment(row.id,{pieceId:row.piece_id,instruments:editInstruments,regions:editRegions,level:editLevel,purpose:editPurpose,description:editDescription},getToken);setEditing(false);})}>変更を保存</button>
+   </section>}
    {owner&&<section className="bg-white border border-ink-100 rounded-2xl p-5 space-y-3"><h2 className="font-semibold">応募者管理（{applicants.length}件）</h2>{applicants.length===0&&<p className="text-sm text-ink-500">応募はまだありません。</p>}
     {applicants.map(a=><div key={a.id} className="flex items-center gap-2 flex-wrap border-b py-2"><button onClick={()=>navigate('userProfile',{id:a.applicant_id})} className="text-sm text-teal-700">{a.display_name}</button><span className="text-xs text-ink-500">{a.status==='pending'?'審査待ち':a.status==='accepted'?'承認済み':'却下済み'}</span>
      {a.status==='pending'&&row.status==='open'&&<><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'accept',getToken))} className="text-xs text-teal-700">承認</button><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'reject',getToken))} className="text-xs text-red-600">却下</button></>}
