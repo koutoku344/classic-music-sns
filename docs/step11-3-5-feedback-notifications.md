@@ -34,3 +34,61 @@ Dedicated test accounts A/B and B-owned test post only. Create one fresh comment
 ## 次の工程
 
 安全な確認SQLとPlaywright通知生成テストを用意し、移行SQL適用前のレビューを行う。
+
+## STEP11-3-5-3：Playwright通知生成テスト（2026-10-21追加）
+
+対象：`tests/playwright/notifications-feedback.spec.mjs`。実装済み、**API書き込みテストは未実行**。
+
+1. フォローが必要ならA→Bの申請・承認を行う（そのフォロー通知は検証基準から除外）。
+2. Bの通知一覧（最新50件）と未読件数を読み取り基準にする。
+3. AがBの投稿に新規コメントし、いいねする。
+4. Bの通知一覧で新規 `post_comment` と `post_like` を各1件確認し、未読件数が2増えることを確認。
+5. 同じいいねを再度PUTして通知が増えないことを確認。
+6. 今回追加したいいね、コメント（論理削除）、フォローのみ後片付けする。
+
+### 前提
+
+- **公開リリース前の現行Worker限定**。他の操作を並行実行しない。
+- テスト専用A/BユーザーとB所有投稿を使用する。Bのプロフィールは `followers`、投稿はコメント許可。
+- **Aが対象投稿を既にいいねしていないこと**。既存のいいねを削除してテスト開始することはない。
+- フォロー状態は `null` または `accepted`。過去の `rejected` が `null` として返る場合があるため、専用アカウントの既存状態を確認する。
+- 通知一覧は最大50件の最新ページを比較する。大量の通知が並行生成される状況では実行しない。
+- 通知生成履歴は**削除しない**。コメントは論理削除され、失敗・通信断時に後片付けが不完全になる可能性がある。
+
+### コード取得
+
+```bash
+cd ~/classic-music-sns
+git switch feat/step11-follow-notifications
+git pull origin feat/step11-follow-notifications
+node --check tests/playwright/notifications-feedback.spec.mjs
+```
+
+### 実行前の環境変数
+
+前回のPlaywrightテストと同じ以下の環境変数を使用する。秘密鍵やメールアドレスをチャット・GitHubに貼らないこと。
+
+```bash
+# 前回と同じClerkのキー・テストアカウントA/Bのメールアドレスも設定
+export SONOLII_TEST_PHASE=PRE_RELEASE
+export SONOLII_TEST_WRITE_CONFIRM=I_CONFIRM_TEST_WRITES
+export SONOLII_TEST_API_URL=https://sonolii-api.g57cydy6ks.workers.dev
+export SONOLII_TEST_OWNER_ID='BのSonoliiユーザーUUID'
+export SONOLII_TEST_POST_ID='Bの投稿UUID'
+```
+
+### 実行（Neonに書き込みます）
+
+```bash
+npm run test:playwright:notifications-feedback
+```
+
+期待結果：`clerk-setup` と通知生成テストの **2 passed**。この結果は未確認で、ユーザー側実行後に確認する。
+
+### このテストの対象外
+
+- コメント返信、コメントへのいいね、自分自身の投稿・コメントに対する操作の通知挙動。
+- 他人の通知の既読変更を含む通知APIの書き込み検証。
+- 既読30日後の通知物理削除。
+
+これらは追加の専用テストで検証する。
