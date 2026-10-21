@@ -12,6 +12,7 @@ export type NotificationRow = {
   actorName: string | null;
   actorId: string | null;
   targetPostId: string | null;
+  pendingFollowId: string | null;
 };
 
 export type NotificationPage = {
@@ -82,4 +83,16 @@ export async function markAllNotificationsRead(
   await authorizedFetch('/me/notifications/read-all', getToken, {
     method: 'POST',
   });
+}
+
+export async function decideFollowRequest(
+  followId: string,
+  decision: 'accept' | 'reject',
+  getToken: NotificationTokenGetter,
+): Promise<void> {
+  await authorizedFetch(
+    `/me/follow-requests/${encodeURIComponent(followId)}/${decision}`,
+    getToken,
+    { method: 'POST' },
+  );
 }
