@@ -35,10 +35,21 @@ test("non-follower cannot read followers-only post, while owner can", async ({ b
   if (!ownerId || !postId || !actorEmail || !ownerEmail) {
     test.skip(true, "Set dedicated A/B emails, SONOLII_TEST_OWNER_ID and SONOLII_TEST_POST_ID");
   }
-  // Match using the same native RegExp.test() as the WSL preflight check.
-  // A valid UUID must not be rejected by the assertion layer.
-  expect(UUID.test(ownerId), "SONOLII_TEST_OWNER_ID must be UUID").toBe(true);
-  expect(UUID.test(postId), "SONOLII_TEST_POST_ID must be UUID").toBe(true);
+  // Do not log IDs: report only safe formatting diagnostics if env loading
+  // changed values between the user's shell and the Playwright worker.
+  const uuidShape = value => ({
+    length: value.length,
+    invalidPositions: [...value].flatMap((character, index) =>
+      /^[0-9a-f-]$/i.test(character) ? [] : [index]),
+    version: value.length === 36 ? value[14] : null,
+    variantValid: value.length === 36 && /^[89ab]$/i.test(value[19]),
+  });
+  expect(UUID.test(ownerId),
+    `SONOLII_TEST_OWNER_ID invalid in Playwright worker: ${JSON.stringify(uuidShape(ownerId))}`
+  ).toBe(true);
+  expect(UUID.test(postId),
+    `SONOLII_TEST_POST_ID invalid in Playwright worker: ${JSON.stringify(uuidShape(postId))}`
+  ).toBe(true);
   expect(actorEmail).not.toBe(ownerEmail);
 
   const ac = await browser.newContext();
