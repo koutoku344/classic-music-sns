@@ -2,7 +2,8 @@ import { API_BASE } from './repertoireApi';
 
 export type NotificationType =
   | 'post_like' | 'post_comment' | 'comment_reply' | 'comment_like'
-  | 'follow' | 'follow_request' | 'follow_accepted';
+  | 'follow' | 'follow_request' | 'follow_accepted'
+  | 'recruitment_application' | 'recruitment_accepted' | 'recruitment_rejected';
 
 export type NotificationRow = {
   id: string;
@@ -13,6 +14,7 @@ export type NotificationRow = {
   actorId: string | null;
   targetPostId: string | null;
   pendingFollowId: string | null;
+  recruitmentId: string | null;
 };
 
 export type NotificationPage = {
