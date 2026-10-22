@@ -61,7 +61,7 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
       <p>承認済み：{row.applicants}件</p>
       <p className="font-medium">楽器別応募件数（審査待ち・承認済み）</p>
       {(row.instruments.length?row.instruments:['その他']).map(instrument=><p key={instrument}>{instrument}：{row.instrument_counts?.[instrument]??0}件</p>)}
-      {row.instruments.length>0&&<p>その他：{row.instrument_counts?.['その他']??0}件</p>}
+      {row.instruments.length>0&&!row.instruments.includes('その他')&&<p>その他：{row.instrument_counts?.['その他']??0}件</p>}
     </div>
     {owner? <div className="flex flex-wrap gap-2">
       {row.status==='open' && <button disabled={busy} onClick={()=>{setEditing(v=>!v);setEditDescription(row.description);setEditLevel(row.level);setEditPurpose(row.purpose);setEditInstruments([...row.instruments]);setEditRegions([...row.regions]);}} className="px-4 py-2 border border-ink-200 rounded-lg text-sm">{editing?'編集を閉じる':'募集内容を編集'}</button>}
