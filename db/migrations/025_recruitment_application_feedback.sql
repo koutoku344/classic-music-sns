@@ -11,7 +11,7 @@ ALTER TABLE public.recruitment_applications ADD CONSTRAINT recruitment_applicati
  CHECK (length(btrim(message))<=1000 AND message=btrim(message));
 ALTER TABLE public.recruitment_applications ADD CONSTRAINT recruitment_application_instrument_check
  CHECK (instrument IS NULL OR instrument IN ('Piano','Violin','Cello','Viola','Flute','Clarinet','Oboe','Trumpet','Guitar','その他'));
-ALTER TABLE public.notifications ADD COLUMN recruitment_id uuid REFERENCES public.recruitments(id) ON DELETE SET NULL;
+ALTER TABLE public.notifications ADD COLUMN recruitment_id uuid REFERENCES public.recruitments(id) ON DELETE CASCADE;
 CREATE INDEX notifications_recruitment_idx ON public.notifications (recruitment_id) WHERE recruitment_id IS NOT NULL;
 ALTER TABLE public.notifications DROP CONSTRAINT notifications_type_check;
 ALTER TABLE public.notifications ADD CONSTRAINT notifications_type_check CHECK (type IN (
