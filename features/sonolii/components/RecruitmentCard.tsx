@@ -25,7 +25,7 @@ export default function RecruitmentCard({ recruitment:r, onClick, onUserClick }:
     <div className="flex items-center justify-between"><span className="text-xs text-ink-400">承認済み {r.applicants}件</span><ChevronRight size={16} className="text-ink-300"/></div>
     <div className="flex gap-x-3 gap-y-1 flex-wrap text-xs text-ink-600" aria-label="楽器別応募件数">
       {(r.instruments.length?r.instruments:['その他']).map(instrument=><span key={instrument}>{instrument}：{r.instrument_counts?.[instrument]??0}件</span>)}
-      {r.instruments.length>0&&<span>その他：{r.instrument_counts?.['その他']??0}件</span>}
+      {r.instruments.length>0&&!r.instruments.includes('その他')&&<span>その他：{r.instrument_counts?.['その他']??0}件</span>}
     </div>
   </div>
  </article>;
