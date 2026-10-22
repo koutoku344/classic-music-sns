@@ -44,7 +44,10 @@ test("STEP12 A/B: create, cancel, reject, reapply, accept, close and cleanup",as
  let id=null;
  const errors=[];
  try{
-  await Promise.all([login(owner,c.ownerEmail),login(actor,c.actorEmail)]);
+  // Clerk testing sign-in helpers may interfere when invoked concurrently.
+  // Keep distinct browser contexts, but complete each sign-in sequentially.
+  await login(owner,c.ownerEmail);
+  await login(actor,c.actorEmail);
   const op=await api(owner,"GET","/me/profile"),ap=await api(actor,"GET","/me/profile");
   ok(op,200,"owner profile");ok(ap,200,"actor profile");
   expect(op.body.profile?.user_id).toBe(c.ownerId);
