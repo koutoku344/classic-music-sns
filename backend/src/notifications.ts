@@ -63,7 +63,7 @@ export async function handleNotifications(
     // disclose entries that became restricted or were removed after notification creation.
     const rows = await sql`
       SELECT
-        n.id, n.type, n.created_at, n.read_at,
+        n.id, n.type, n.created_at, n.read_at, n.recruitment_id,
         actor.display_name AS actor_name,
         actor.user_id AS actor_id,
         CASE WHEN n.type = 'follow_request'
@@ -109,6 +109,7 @@ export async function handleNotifications(
       actorId: row.actor_id,
       targetPostId: row.target_post_id,
       pendingFollowId: row.pending_follow_id,
+      recruitmentId: row.recruitment_id,
     }));
     const last = rows[Math.min(rows.length, limit) - 1];
     return reply({
