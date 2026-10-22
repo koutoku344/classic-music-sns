@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
-import { recruitments } from '../data';
+import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostMediaView from '../components/PostMediaView';
 import RecruitmentCard from '../components/RecruitmentCard';
@@ -22,6 +22,10 @@ export default function Community({ navigate }: CommunityProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [posts, setPosts] = useState<PostRow[]>([]);
+  const [recruitments, setRecruitments] = useState<RecruitmentRow[]>([]);
+  const [recruitCursor, setRecruitCursor] = useState<string | null>(null);
+  const [recruitMoreBusy, setRecruitMoreBusy] = useState(false);
+  const [recruitError, setRecruitError] = useState('');
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [moreBusy, setMoreBusy] = useState(false);
@@ -45,6 +49,28 @@ export default function Community({ navigate }: CommunityProps) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [isLoaded, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let active = true;
+    void listRecruitments(getToken).then(data => {
+      if (active) { setRecruitments(data.recruitments); setRecruitCursor(data.nextCursor); }
+    }).catch(e => {
+      if (active) setRecruitError(e instanceof Error ? e.message : '募集を取得できませんでした。');
+    });
+    return () => { active = false; };
+  }, [isLoaded, getToken]);
+
+  async function loadMoreRecruitments() {
+    if (!recruitCursor || recruitMoreBusy) return;
+    setRecruitMoreBusy(true);
+    try {
+      const data = await listRecruitments(getToken, { cursor: recruitCursor });
+      setRecruitments(old => [...old, ...data.recruitments.filter(item => !old.some(x => x.id === item.id))]);
+      setRecruitCursor(data.nextCursor);
+    } catch (e) { setRecruitError(e instanceof Error ? e.message : '追加の募集を取得できませんでした。'); }
+    finally { setRecruitMoreBusy(false); }
+  }
 
   async function loadMore() {
     if (!cursor || moreBusy) return;
@@ -72,7 +98,7 @@ export default function Community({ navigate }: CommunityProps) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="font-serif text-2xl font-bold text-ink-900">コミュニティ</h1>
-            <p className="text-xs text-ink-400 mt-0.5">投稿 {posts.length}件（取得済み） · 募集はサンプル表示</p>
+            <p className="text-xs text-ink-400 mt-0.5">投稿 {posts.length}件（取得済み） · 募集 {recruitments.length}件（取得済み）</p>
           </div>
           <div className="relative">
             <button onClick={() => setShowCreateMenu(v => !v)}
@@ -89,7 +115,7 @@ export default function Community({ navigate }: CommunityProps) {
                   </button>
                   <button onClick={() => { setShowCreateMenu(false); navigate('createRecruitment'); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-teal-50">
-                    <Users size={16}/> 募集を作成（サンプル）
+                    <Users size={16}/> 募集を作成
                   </button>
                 </div>
               </>
@@ -102,7 +128,7 @@ export default function Community({ navigate }: CommunityProps) {
               className={`px-4 py-1.5 rounded-full text-sm font-medium ${filter === item
                 ? 'bg-ink-900 text-white'
                 : 'bg-white text-ink-600 border border-ink-200'}`}>
-              {item === 'all' ? '全て' : item === 'posts' ? '投稿' : '募集（サンプル）'}
+              {item === 'all' ? '全て' : item === 'posts' ? '投稿' : '募集'}
             </button>
           ))}
         </div>
@@ -162,15 +188,19 @@ export default function Community({ navigate }: CommunityProps) {
         )}
         {showRecruitments && (
           <>
-            <p className="text-xs text-ink-400">以下の募集はまだサンプルデータです。</p>
+            {recruitError && <p role="alert" className="text-sm text-red-600">{recruitError}</p>}
             {recruitments.map(item => (
               <RecruitmentCard
                 key={item.id}
                 recruitment={item}
                 onClick={() => navigate('recruitmentDetail', { id: item.id })}
-                onUserClick={() => navigate('userProfile', { id: item.user.id })}
+                onUserClick={() => navigate('userProfile', { id: item.user_id })}
               />
             ))}
+            {recruitCursor && <button onClick={() => void loadMoreRecruitments()} disabled={recruitMoreBusy}
+              className="w-full py-3 text-sm text-teal-700 border border-ink-200 rounded-xl disabled:opacity-50">
+              {recruitMoreBusy ? '読み込み中...' : 'さらに募集を読み込む'}
+            </button>}
           </>
         )}
       </div>

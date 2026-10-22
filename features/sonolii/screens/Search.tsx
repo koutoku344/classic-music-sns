@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { users, recruitments } from '../data';
+import { users } from '../data';
+import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { loadCatalog, type SelectablePiece } from '../lib/practiceApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
@@ -23,6 +24,10 @@ export default function Search({ navigate }: SearchProps) {
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [catalog, setCatalog] = useState<SelectablePiece[]>([]);
   const [postRows, setPostRows] = useState<PostRow[]>([]);
+  const [recruitments,setRecruitments] = useState<RecruitmentRow[]>([]);
+  const [recruitCursor,setRecruitCursor] = useState<string|null>(null);
+  const [recruitBusy,setRecruitBusy] = useState(false);
+  const [recruitError,setRecruitError] = useState('');
   const [postCursor, setPostCursor] = useState<string | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsMoreBusy, setPostsMoreBusy] = useState(false);
@@ -83,13 +88,34 @@ export default function Search({ navigate }: SearchProps) {
     (u) => u.name.toLowerCase().includes(uq) || u.instrument.toLowerCase().includes(uq) || u.region.toLowerCase().includes(uq)
   );
 
-  const filteredRecruitments = recruitments.filter((r) => {
-    if (rInstrument !== 'all' && r.instrument !== rInstrument) return false;
-    if (rRegion !== 'all' && r.region !== rRegion) return false;
-    if (rPurpose !== 'all' && r.purpose !== rPurpose) return false;
-    if (rLevel !== 'all' && r.level !== rLevel) return false;
-    return true;
-  });
+  const filteredRecruitments = recruitments;
+  useEffect(() => {
+    if (!isLoaded || tab !== 'recruitments') return;
+    let active = true;
+    setRecruitBusy(true);
+    setRecruitError('');
+    setRecruitments([]);
+    setRecruitCursor(null);
+    void listRecruitments(getToken, {
+      instrument:rInstrument, region:rRegion, level:rLevel, purpose:rPurpose,
+      pieceId:selectedPiece?.id??null
+    }).then(data => {
+      if(active){setRecruitments(data.recruitments);setRecruitCursor(data.nextCursor);}
+    }).catch(e => {if(active)setRecruitError(e instanceof Error?e.message:'募集を検索できませんでした。');})
+      .finally(()=>{if(active)setRecruitBusy(false);});
+    return ()=>{active=false;};
+  }, [isLoaded,getToken,tab,rInstrument,rRegion,rLevel,rPurpose,selectedPiece?.id]);
+
+  async function loadMoreRecruitments(){
+    if (!recruitCursor || recruitBusy)return;
+    setRecruitBusy(true);
+    try{
+      const data=await listRecruitments(getToken,{cursor:recruitCursor,instrument:rInstrument,region:rRegion,level:rLevel,purpose:rPurpose,pieceId:selectedPiece?.id??null});
+      setRecruitments(prev=>[...prev,...data.recruitments.filter(r=>!prev.some(x=>x.id===r.id))]);
+      setRecruitCursor(data.nextCursor);
+    }catch(e){setRecruitError(e instanceof Error?e.message:'募集を追加取得できませんでした。');}
+    finally{setRecruitBusy(false);}
+  }
 
   const selectCls = "w-full px-2 py-2 bg-ink-50 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-400";
 
@@ -222,20 +248,27 @@ export default function Search({ navigate }: SearchProps) {
             </div>
           </div>
 
+          <div className="bg-white rounded-2xl border border-ink-100 p-4 mb-5">
+            <PiecePicker pieces={catalog} defaultLibraryMode="catalog" selectedPiece={selectedPiece}
+              onSelect={setSelectedPiece} label="曲で絞り込む（任意）" allowFreeInput={false} recentPieces={[]} />
+          </div>
+          {recruitError && <p role="alert" className="text-sm text-red-600">{recruitError}</p>}
+          {recruitBusy && <p className="text-sm text-ink-500">募集中の案件を検索しています...</p>}
           <div className="space-y-4">
             {filteredRecruitments.map((r) => (
               <RecruitmentCard
                 key={r.id}
                 recruitment={r}
                 onClick={() => navigate('recruitmentDetail', { id: r.id })}
-                onUserClick={() => navigate('userProfile', { id: r.user.id })}
+                onUserClick={() => navigate('userProfile', { id: r.user_id })}
               />
             ))}
-            {filteredRecruitments.length === 0 && (
+            {!recruitBusy && filteredRecruitments.length === 0 && !recruitError && (
               <div className="text-center py-20 text-ink-400">
                 <p>該当する結果がありません</p>
               </div>
             )}
+            {recruitCursor && <button type="button" onClick={() => void loadMoreRecruitments()} disabled={recruitBusy} className="w-full border border-ink-200 rounded-xl p-3 text-sm text-teal-700 disabled:opacity-50">{recruitBusy?'読み込み中...':'さらに募集を表示'}</button>}
           </div>
         </>
       )}
