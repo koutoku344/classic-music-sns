@@ -16,8 +16,8 @@ const labels: Record<string, string> = {
   follow_request: 'フォロー申請が届きました',
   follow_accepted: 'フォロー申請が承認されました',
   recruitment_application: 'あなたの募集に応募がありました',
-  recruitment_accepted: '募集への応募が承認されました',
-  recruitment_rejected: '募集への応募が却下されました',
+  recruitment_accepted: 'あなたの募集応募を承認しました',
+  recruitment_rejected: 'あなたの募集応募を却下しました',
 };
 
 function NoticeIcon({ type }: { type: string }) {
