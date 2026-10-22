@@ -16,7 +16,7 @@ export function parseRecruitment(raw:unknown):RecruitmentInput|null {
  if(Object.keys(v).some(k=>!["pieceId","instruments","regions","level","purpose","description"].includes(k)))return null;
  const pieceId=v.pieceId??null, instruments=v.instruments,regions=v.regions;
  if(pieceId!==null&&(typeof pieceId!=="string"||!UUID.test(pieceId)))return null;
- if(!Array.isArray(instruments)||!Array.isArray(regions)||!instruments.length||!regions.length||instruments.length>10||regions.length>8)return null;
+ if(!Array.isArray(instruments)||!Array.isArray(regions)||!regions.length||instruments.length>10||regions.length>8)return null;
  if(instruments.some(i=>typeof i!=="string"||!INST.includes(i))||regions.some(i=>typeof i!=="string"||!REGION.includes(i)))return null;
  if(new Set(instruments).size!==instruments.length||new Set(regions).size!==regions.length)return null;
  if(typeof v.level!=="string"||!LEVELS.includes(v.level)||typeof v.purpose!=="string"||!PURPOSES.includes(v.purpose))return null;
@@ -40,7 +40,8 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   const parts=cursor?.split("|");if(cursor&&(parts?.length!==2||!Number.isFinite(Date.parse(parts[0]))||!idOK(parts[1])))return resp({error:"invalid_cursor"},400,headers);
   const rows=await sql`
    SELECT r.*,p.display_name,pi.title AS piece_title,c.name AS composer_name,
-     (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants
+     (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants,
+     (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts
    FROM public.recruitments r
    JOIN public.profiles p ON p.user_id=r.user_id
    LEFT JOIN public.pieces pi ON pi.id=r.piece_id
@@ -60,6 +61,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   const rows=await sql`
     SELECT r.*,pr.display_name,pi.title AS piece_title,c.name AS composer_name,
     (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants,
+    (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts,
     (SELECT a.status FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.applicant_id=${userId}::uuid) AS my_application
     FROM public.recruitments r JOIN public.profiles pr ON pr.user_id=r.user_id
     LEFT JOIN public.pieces pi ON pi.id=r.piece_id LEFT JOIN public.composers c ON c.id=pi.composer_id
@@ -93,12 +95,25 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   return rows.length?resp({recruitment:{id}},200,headers):resp({error:"not_found_or_closed"},404,headers);
  }
  if(m==="POST"&&id&&!app&&p===`/recruitments/${id}/applications`){
-  // A single SQL statement prevents applying to own or closed recruitment.
+  let payload:unknown;
+  try{payload=await jsonBody(request);}catch{return resp({error:"invalid_application"},400,headers);}
+  if(!payload||typeof payload!=="object"||Array.isArray(payload))return resp({error:"invalid_application"},400,headers);
+  const v=payload as Record<string,unknown>;
+  if(Object.keys(v).some(k=>!["message","instrument"].includes(k)))return resp({error:"invalid_application"},400,headers);
+  const message=v.message??"",instrument=v.instrument??null;
+  if(typeof message!=="string"||message.trim().length>1000||
+    (instrument!==null&&(typeof instrument!=="string"||!INST.includes(instrument))))return resp({error:"invalid_application"},400,headers);
+  const body=message.trim();
+  // Validate instrument against the exact recruitment in the same write statement.
   const rows=await sql`
-   INSERT INTO public.recruitment_applications(recruitment_id,applicant_id)
-   SELECT r.id,${userId}::uuid FROM public.recruitments r JOIN public.profiles pr ON pr.user_id=${userId}::uuid
+   INSERT INTO public.recruitment_applications(recruitment_id,applicant_id,message,instrument)
+   SELECT r.id,${userId}::uuid,${body},${instrument}
+   FROM public.recruitments r JOIN public.profiles pr ON pr.user_id=${userId}::uuid
    WHERE r.id=${id}::uuid AND r.status='open' AND r.user_id<>${userId}::uuid
-   ON CONFLICT (recruitment_id,applicant_id) DO UPDATE SET status='pending',updated_at=now()
+     AND ((cardinality(r.instruments)=0 AND ${instrument}::text IS NULL)
+       OR (cardinality(r.instruments)>0 AND (${instrument}::text IS NULL OR ${instrument}=ANY(r.instruments))))
+   ON CONFLICT (recruitment_id,applicant_id) DO UPDATE
+      SET status='pending',message=excluded.message,instrument=excluded.instrument,updated_at=clock_timestamp()
    WHERE recruitment_applications.status='rejected'
    RETURNING id
   `;
@@ -110,7 +125,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
  }
  if(m==="GET"&&id&&!app&&p===`/recruitments/${id}/applications`){
   const rows=await sql`
-   SELECT a.id,a.applicant_id,a.status,a.created_at,pr.display_name
+   SELECT a.id,a.applicant_id,a.status,a.created_at,a.message,a.instrument,pr.display_name
    FROM public.recruitment_applications a
    JOIN public.recruitments r ON r.id=a.recruitment_id AND r.user_id=${userId}::uuid
    JOIN public.profiles pr ON pr.user_id=a.applicant_id
