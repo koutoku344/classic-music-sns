@@ -53,12 +53,16 @@ export default function Community({ navigate }: CommunityProps) {
   useEffect(() => {
     if (!isLoaded) return;
     let active = true;
-    void listRecruitments(getToken).then(data => {
+    const reloadRecruitments = () => { void listRecruitments(getToken).then(data => {
       if (active) { setRecruitments(data.recruitments); setRecruitCursor(data.nextCursor); }
     }).catch(e => {
       if (active) setRecruitError(e instanceof Error ? e.message : '募集を取得できませんでした。');
-    });
-    return () => { active = false; };
+    }); };
+    reloadRecruitments();
+    const onFocus = () => { if (document.visibilityState === 'visible') reloadRecruitments(); };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('sonolii:recruitment-changed', reloadRecruitments);
+    return () => { active = false; window.removeEventListener('focus', onFocus); window.removeEventListener('sonolii:recruitment-changed', reloadRecruitments); };
   }, [isLoaded, getToken]);
 
   async function loadMoreRecruitments() {
@@ -124,7 +128,7 @@ export default function Community({ navigate }: CommunityProps) {
         </div>
         <div className="flex items-center gap-2">
           {(['all', 'posts', 'recruitments'] as const).map(item => (
-            <button key={item} onClick={() => setFilter(item)}
+            <button key={item} onClick={() => { setFilter(item); window.dispatchEvent(new Event('sonolii:recruitment-changed')); }}
               className={`px-4 py-1.5 rounded-full text-sm font-medium ${filter === item
                 ? 'bg-ink-900 text-white'
                 : 'bg-white text-ink-600 border border-ink-200'}`}>
