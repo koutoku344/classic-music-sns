@@ -15,6 +15,9 @@ const labels: Record<string, string> = {
   follow: 'フォローされました',
   follow_request: 'フォロー申請が届きました',
   follow_accepted: 'フォロー申請が承認されました',
+  recruitment_application: 'あなたの募集に応募がありました',
+  recruitment_accepted: '募集への応募が承認されました',
+  recruitment_rejected: '募集への応募が却下されました',
 };
 
 function NoticeIcon({ type }: { type: string }) {
@@ -135,6 +138,10 @@ export default function Notifications({ navigate }: {
   };
 
   const openNotification = (item: NotificationRow) => {
+    if (item.type.startsWith('recruitment_')) {
+      if (item.recruitmentId) navigate('recruitmentDetail', { id: item.recruitmentId, from: 'notifications' });
+      return;
+    }
     if (['follow', 'follow_request', 'follow_accepted'].includes(item.type)) {
       if (item.actorId) navigate('userProfile', { id: item.actorId, from: 'notifications' });
       return;
@@ -147,6 +154,7 @@ export default function Notifications({ navigate }: {
   };
 
   const canOpen = (item: NotificationRow) =>
+    (item.type.startsWith('recruitment_') && !!item.recruitmentId) ||
     ['follow', 'follow_request', 'follow_accepted'].includes(item.type)
       ? !!item.actorId
       : ['post_like', 'post_comment', 'comment_reply', 'comment_like'].includes(item.type);
@@ -259,7 +267,7 @@ export default function Notifications({ navigate }: {
             </button>
           )}
           <p className="mt-4 text-xs text-ink-400">
-            通知を押すと対象の投稿またはプロフィールに移動します。閲覧権限がない投稿は、詳細画面で閲覧できない旨を表示します。
+            通知を押すと対象の投稿、プロフィール、募集に移動します。閲覧権限がない投稿は、詳細画面で閲覧できない旨を表示します。
           </p>
         </>
       )}
