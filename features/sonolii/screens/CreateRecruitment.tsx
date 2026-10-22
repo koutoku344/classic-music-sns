@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/react';
 import { createRecruitment } from '../lib/recruitmentApi';
 import { loadCatalog, type SelectablePiece } from '../lib/practiceApi';
 import PiecePicker from '../components/PiecePicker';
-import type { ScreenName } from '../types';
+import type { ScreenName, Piece } from '../types';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -13,7 +13,7 @@ const selectCls = 'w-full px-3 py-2.5 bg-white border border-ink-200 rounded-xl 
 export default function CreateRecruitment({navigate}:{navigate:(s:ScreenName,params?:Record<string,string>)=>void}) {
   const { getToken }=useAuth();
   const [catalog,setCatalog]=useState<SelectablePiece[]>([]);
-  const [piece,setPiece]=useState<SelectablePiece|null>(null);
+  const [piece,setPiece]=useState<Piece|null>(null);
   const [selectedInstruments,setSelectedInstruments]=useState<string[]>([]);
   const [selectedRegions,setSelectedRegions]=useState<string[]>([]);
   const [level,setLevel]=useState('問わない');
