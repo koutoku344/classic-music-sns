@@ -42,7 +42,7 @@ test('STEP12: unauthenticated writes and applicant-list reads are denied before 
  assert.equal(db.calls.length,0);
 });
 test('STEP12: rejecting unauthorized owner status change returns 404',async()=>{
- const db=sqlStub((q,args)=>{assert.match(q,/WHERE id=\?::uuid AND user_id=\?::uuid/);assert.equal(args[1],APP);return [];});
+ const db=sqlStub((q,args)=>{assert.match(q,/WHERE id=\?::uuid AND user_id=\?::uuid/);assert.equal(args[2],APP);return [];});
  const res=await run(request('PATCH','/recruitments/'+ID+'/status',{status:'closed'}),db.sql,APP);
  assert.equal(res.status,404);
 });
