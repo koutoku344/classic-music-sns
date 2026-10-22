@@ -61,7 +61,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   const rows=await sql`
     SELECT r.*,pr.display_name,pi.title AS piece_title,c.name AS composer_name,
     (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants,
-    (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts,
+    (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status IN ('pending','accepted') GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts,
     (SELECT a.status FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.applicant_id=${userId}::uuid) AS my_application
     FROM public.recruitments r JOIN public.profiles pr ON pr.user_id=r.user_id
     LEFT JOIN public.pieces pi ON pi.id=r.piece_id LEFT JOIN public.composers c ON c.id=pi.composer_id
