@@ -41,7 +41,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
   const rows=await sql`
    SELECT r.*,p.display_name,pi.title AS piece_title,c.name AS composer_name,
      (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants,
-     (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts
+     (SELECT coalesce(jsonb_object_agg(instrument,quantity),'{}'::jsonb) FROM (SELECT coalesce(a.instrument,'その他') AS instrument,count(*)::int AS quantity FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status IN ('pending','accepted') GROUP BY coalesce(a.instrument,'その他')) breakdown) AS instrument_counts
    FROM public.recruitments r
    JOIN public.profiles p ON p.user_id=r.user_id
    LEFT JOIN public.pieces pi ON pi.id=r.piece_id
@@ -96,7 +96,7 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
  }
  if(m==="POST"&&id&&!app&&p===`/recruitments/${id}/applications`){
   let payload:unknown;
-  try{payload=await jsonBody(request);}catch{return resp({error:"invalid_application"},400,headers);}
+  try{const raw=await request.text();payload=raw?JSON.parse(raw):{};}catch{return resp({error:"invalid_application"},400,headers);}
   if(!payload||typeof payload!=="object"||Array.isArray(payload))return resp({error:"invalid_application"},400,headers);
   const v=payload as Record<string,unknown>;
   if(Object.keys(v).some(k=>!["message","instrument"].includes(k)))return resp({error:"invalid_application"},400,headers);
