@@ -25,12 +25,13 @@ export default function CreateRecruitment({navigate}:{navigate:(s:ScreenName,par
   const toggle=(value:string,items:string[],set:(values:string[])=>void)=>set(items.includes(value)?items.filter(x=>x!==value):[...items,value]);
   async function submit(){
     if(busy)return;
-    if(!selectedInstruments.length||!selectedRegions.length||!description.trim()){
-      setError('楽器・地域を1つ以上選択し、募集内容を入力してください。');return;
+    if(!selectedRegions.length||!description.trim()){
+      setError('地域を1つ以上選択し、募集内容を入力してください。');return;
     }
     setBusy(true);setError('');
     try{
       const id=await createRecruitment({pieceId:piece?.id??null,instruments:selectedInstruments,regions:selectedRegions,level,purpose,description},getToken);
+      window.dispatchEvent(new Event('sonolii:recruitment-changed'));
       navigate('recruitmentDetail',{id});
     }catch(e){setError(e instanceof Error?e.message:'募集を作成できませんでした。');}
     finally{setBusy(false);}
@@ -40,7 +41,7 @@ export default function CreateRecruitment({navigate}:{navigate:(s:ScreenName,par
     <h1 className="font-serif text-2xl font-bold">アンサンブル募集を作成</h1>
     <div className="bg-white rounded-2xl border border-ink-100 p-5 space-y-5">
       <PiecePicker pieces={catalog} selectedPiece={piece} onSelect={setPiece} label="演奏曲目（任意）" recentPieces={[]} allowFreeInput={false} defaultLibraryMode="catalog" />
-      <fieldset><legend className="text-sm font-medium mb-2">募集楽器（複数選択可）</legend><div className="flex flex-wrap gap-2">{instruments.map(x=><button type="button" key={x} aria-pressed={selectedInstruments.includes(x)} onClick={()=>toggle(x,selectedInstruments,setSelectedInstruments)} className={`px-3 py-2 border rounded-xl text-sm ${selectedInstruments.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
+      <fieldset><legend className="text-sm font-medium mb-2">募集楽器（任意・未選択なら指定なし）</legend><div className="flex flex-wrap gap-2">{instruments.map(x=><button type="button" key={x} aria-pressed={selectedInstruments.includes(x)} onClick={()=>toggle(x,selectedInstruments,setSelectedInstruments)} className={`px-3 py-2 border rounded-xl text-sm ${selectedInstruments.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
       <fieldset><legend className="text-sm font-medium mb-2">地域（複数選択可）</legend><div className="flex flex-wrap gap-2">{regions.map(x=><button type="button" key={x} aria-pressed={selectedRegions.includes(x)} onClick={()=>toggle(x,selectedRegions,setSelectedRegions)} className={`px-3 py-2 border rounded-xl text-sm ${selectedRegions.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
       <div className="grid grid-cols-2 gap-3"><label className="text-sm">レベル<select value={level} onChange={e=>setLevel(e.target.value)} className={selectCls}>{['初級','中級','上級','問わない'].map(x=><option key={x}>{x}</option>)}</select></label><label className="text-sm">目的<select value={purpose} onChange={e=>setPurpose(e.target.value)} className={selectCls}>{['アンサンブル','発表会','趣味で合わせ','その他'].map(x=><option key={x}>{x}</option>)}</select></label></div>
       <label className="block text-sm">募集内容（必須）<textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={2000} rows={5} className={selectCls} placeholder="演奏条件・練習頻度・日程など" /></label>
