@@ -12,10 +12,11 @@ const valid={
 test('STEP12: accepts a valid text-only recruitment and optional piece',()=>{
  assert.deepEqual(parseRecruitment(valid),valid);
  assert.equal(parseRecruitment({...valid,pieceId:id})?.pieceId,id);
+ assert.deepEqual(parseRecruitment({...valid,instruments:[]})?.instruments,[]);
 });
 test('STEP12: rejects media fields and malformed inputs',()=>{
  for(const input of [
-  {...valid,audioMediaId:id},{...valid,mediaIds:[id]}, {...valid,instruments:[]},
+  {...valid,audioMediaId:id},{...valid,mediaIds:[id]},
   {...valid,instruments:['Piano','Piano']},{...valid,regions:['不正な地域']},
   {...valid,description:'  '},{...valid,description:'x'.repeat(2001)},
   {...valid,pieceId:'not-uuid'},{...valid,status:'open'}
