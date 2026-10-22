@@ -50,7 +50,8 @@
     "test:step11:auth-read": "playwright test step11-authorization-read.spec.mjs",
     "test:step11:cron": "node --test tests/integration/notification-cron-mock.test.mjs",
     "test:step12:static": "node --test tests/integration/step12-recruitments.test.mjs tests/integration/step12-api-handler.test.mjs",
-    "test:step12:check": "npm run test:step12:static && npx tsc --noEmit && npm run build"
+    "test:step12:check": "npm run test:step12:static && npx tsc --noEmit && npm run build",
+    "test:step12:write": "playwright test step12-recruitment-write.spec.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
