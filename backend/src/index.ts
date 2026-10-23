@@ -334,7 +334,8 @@ export default {
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
       isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
-      isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname))) {
+      isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname) ||
+      isMessageRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
