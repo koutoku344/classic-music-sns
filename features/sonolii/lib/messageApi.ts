@@ -2,8 +2,7 @@ import { API_BASE } from './repertoireApi';
 import type { TokenGetter } from './mediaApi';
 
 export type ConversationRow = {
- id:string; application_id:string|null; organizer_id:string; applicant_id:string;
- recruitment_description:string; partner_name:string; partner_id?:string;
+ id:string; partner_name:string; partner_id?:string;
  last_message?:string|null; unread_count?:number; updated_at?:string;
 };
 export type MessageRow = {id:string;sender_id:string;body:string;created_at:string};
@@ -33,7 +32,7 @@ export async function sendMessage(id:string,body:string,getToken:TokenGetter):Pr
 export async function markConversationRead(id:string,getToken:TokenGetter):Promise<void>{
  await call('/conversations/'+encodeURIComponent(id)+'/read',getToken,{method:'POST'});
 }
-export async function getOrCreateConversation(recruitmentId:string,applicationId:string,getToken:TokenGetter):Promise<string>{
- const path='/recruitments/'+encodeURIComponent(recruitmentId)+'/applications/'+encodeURIComponent(applicationId)+'/conversation';
- return (await (await call(path,getToken,{method:'POST'})).json() as {conversationId:string}).conversationId;
+export async function getOrCreateConversation(partnerId:string,getToken:TokenGetter):Promise<string>{
+ const response=await call('/users/'+encodeURIComponent(partnerId)+'/conversation',getToken,{method:'POST'});
+ return (await response.json() as {conversationId:string}).conversationId;
 }
