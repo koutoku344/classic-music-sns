@@ -6,6 +6,7 @@ import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedbac
 import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 import { handleRecruitments, isRecruitmentRoute, isPublicRecruitmentRead } from "./recruitments";
+import { handleMessages, isMessageRoute } from "./messages";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -527,6 +528,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isMessageRoute(url.pathname)) {
+        return await handleMessages(request, sql, userId, headers);
+      }
 
       if (isRecruitmentRoute(url.pathname)) {
         return await handleRecruitments(request, sql, userId, headers);
