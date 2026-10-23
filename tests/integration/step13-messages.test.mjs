@@ -54,3 +54,10 @@ test('STEP13: all screens use API, not sample data, and notification links targe
  assert.match(notifications,/direct_message/);
  assert.match(detail,/setInterval/);
 });
+
+test('STEP13: API entrypoint allows messaging before auth routing',()=>{
+ const src=readFileSync(new URL('../../backend/src/index.ts',import.meta.url),'utf8');
+ const allowlist=src.slice(src.indexOf('if (!(mineGet'),src.indexOf('// Public endpoint: a token is optional.'));
+ assert.match(allowlist,/isMessageRoute\(url\.pathname\)/);
+ assert.match(src,/return await handleMessages\(request, sql, userId, headers\)/);
+});
