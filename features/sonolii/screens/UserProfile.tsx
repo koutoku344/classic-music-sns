@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
+import { getOrCreateConversation } from '../lib/messageApi';
 
 type PublicProfile = {
   user_id: string;
@@ -28,6 +29,8 @@ export default function UserProfile({
 }) {
   const { isLoaded, getToken } = useAuth();
   const [fromNotifications, setFromNotifications] = useState(false);
+  const [dmBusy,setDmBusy]=useState(false);
+  const [dmError,setDmError]=useState('');
 
   useEffect(() => {
     setFromNotifications(new URLSearchParams(window.location.search).get('from') === 'notifications');
@@ -192,6 +195,8 @@ export default function UserProfile({
                   followStatus === 'pending' ? '申請を取り消す' :
                   followStatus === 'accepted' ? 'フォローを解除' : 'フォローする'}
               </button>
+              <button type="button" disabled={dmBusy} onClick={()=>{setDmBusy(true);setDmError('');void getOrCreateConversation(profile.user_id,getToken).then(id=>navigate('conversation',{id})).catch(e=>setDmError(String(e))).finally(()=>setDmBusy(false));}} className="ml-2 px-4 py-2 rounded-lg border border-teal-600 text-teal-700 text-sm disabled:opacity-50">メッセージ</button>
+              {dmError && <p role="alert" className="mt-2 text-sm text-red-600">{dmError}</p>}
               {followError && <p role="alert" className="mt-2 text-sm text-red-600">{followError}</p>}
             </div>
           )}
