@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { clerk } from '@clerk/testing/playwright';
 
 const API='https://sonolii-api.g57cydy6ks.workers.dev';
-const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function config(){
  const e=process.env;
  expect(e.CI===undefined||/^(false|0)$/i.test(e.CI),'CI write tests prohibited').toBe(true);
