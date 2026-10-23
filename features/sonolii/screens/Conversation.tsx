@@ -57,7 +57,7 @@ export default function Conversation({conversationId,navigate}:{conversationId:s
   <div className="flex items-center gap-3 pb-4 border-b border-ink-100">
    <button aria-label="メッセージ一覧へ戻る" onClick={()=>navigate('messages')}><ArrowLeft size={20}/></button>
    <div><p className="font-semibold text-ink-900">{conversation?.partner_name??'会話'}</p>
-   <p className="text-xs text-ink-500 line-clamp-1">{conversation?.recruitment_description}</p></div>
+</div>
   </div>
   {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
   {loading?<p className="text-sm text-ink-500">会話を読み込み中...</p>:
