@@ -3,7 +3,6 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { getRecruitment, applyRecruitment, cancelRecruitmentApplication, listRecruitmentApplicants, decideRecruitmentApplicant, setRecruitmentStatus, updateRecruitment, deleteRecruitment, type RecruitmentRow, type ApplicantRow } from '../lib/recruitmentApi';
 import { ArrowLeft } from 'lucide-react';
-import { getOrCreateConversation } from '../lib/messageApi';
 
 export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentId:string;navigate:(s:ScreenName,params?:Record<string,string>)=>void}) {
  const {getToken,userId:clerkId}=useAuth();
@@ -71,11 +70,7 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
      </div>:
      <div>
       {row.my_application==='pending'? <button disabled={busy} onClick={()=>void perform(()=>cancelRecruitmentApplication(row.id,getToken))} className="px-4 py-2 border rounded-lg">応募を取り消す</button>:
-       row.my_application==='accepted'?<div className="space-y-2">
-        <p className="text-sm text-teal-700">応募が承認されました。</p>
-        {row.my_application_id&&<button disabled={busy} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
-          onClick={()=>void perform(async()=>{const id=await getOrCreateConversation(row.id,row.my_application_id!,getToken);navigate('conversation',{id});})}>主催者にメッセージ</button>}
-       </div>:
+       row.my_application==='accepted'?<p className="text-sm text-teal-700">応募が承認されました。主催者のプロフィールからメッセージを開始できます。</p>:
        row.status==='open'?<div className="space-y-3">
         {row.instruments.length>0?<label className="block text-sm font-medium">応募する楽器（任意）
           <select aria-label="応募する楽器" className="block w-full mt-1 p-2 rounded-lg border border-ink-200" value={applyInstrument} onChange={e=>setApplyInstrument(e.target.value)}>
@@ -105,7 +100,7 @@ export default function RecruitmentDetail({recruitmentId,navigate}:{recruitmentI
    {owner&&<section className="bg-white border border-ink-100 rounded-2xl p-5 space-y-3"><h2 className="font-semibold">応募者管理（{applicants.length}件）</h2>{applicants.length===0&&<p className="text-sm text-ink-500">応募はまだありません。</p>}
     {applicants.map(a=><div key={a.id} className="flex items-center gap-2 flex-wrap border-b py-2"><button onClick={()=>navigate('userProfile',{id:a.applicant_id})} className="text-sm text-teal-700">{a.display_name}</button><span className="text-xs text-ink-500">{a.status==='pending'?'審査待ち':a.status==='accepted'?'承認済み':'却下済み'}</span>
      <span className="text-xs text-ink-600">{a.instrument??'楽器指定なし'}</span>
-     {a.status==='accepted'&&<button disabled={busy} className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm" onClick={()=>void perform(async()=>{const id=await getOrCreateConversation(row.id,a.id,getToken);navigate('conversation',{id});})}>メッセージ</button>}
+     
      {a.message&&<p className="basis-full text-sm text-ink-700 whitespace-pre-wrap bg-ink-50 rounded-lg p-3">{a.message}</p>}
      {a.status==='pending'&&row.status==='open'&&<><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'accept',getToken))} className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-600 text-white border border-teal-700 disabled:opacity-50">承認</button><button disabled={busy} onClick={()=>void perform(()=>decideRecruitmentApplicant(row.id,a.id,'reject',getToken))} className="px-4 py-2 text-sm font-semibold rounded-lg border border-ink-300 bg-white text-ink-700 disabled:opacity-50">却下</button></>}
     </div>)}
