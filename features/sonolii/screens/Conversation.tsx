@@ -31,7 +31,8 @@ export default function Conversation({conversationId,navigate}:{conversationId:s
     const info=await response.json() as {profile:{user_id:string}};
     if(active)setMyId(info.profile.user_id);
   })]).catch(e=>{if(active)setError(e instanceof Error?e.message:'取得に失敗しました。');}).finally(()=>{if(active)setLoading(false);});
-  return()=>{active=false;};
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh().catch(()=>{});},10000);
+  return()=>{active=false;window.clearInterval(timer);};
  },[refresh,getToken]);
  async function send(e:React.FormEvent){
   e.preventDefault();
