@@ -2,21 +2,21 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 type Sql = NeonQueryFunction<false,false>;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const reply=(body:unknown,status:number,h:Record<string,string>)=>Response.json(body,{status,headers:{"Cache-Control":"no-store",...h}});
-export const isMessageRoute=(p:string)=>p==="/conversations"||/^\/conversations\/[^/]+(?:\/(?:messages|read))?$/.test(p)||/^\/recruitments\/[^/]+\/conversation$/.test(p);
+export const isMessageRoute=(p:string)=>p==="/conversations"||/^\/conversations\/[^/]+(?:\/(?:messages|read))?$/.test(p)||/^\/recruitments\/[^/]+\/applications\/[^/]+\/conversation$/.test(p);
 export async function handleMessages(request:Request,sql:Sql,userId:string|null,headers:Record<string,string>):Promise<Response>{
  if(!userId)return reply({error:"unauthorized"},401,headers);
  const {pathname:p,searchParams:q}=new URL(request.url),m=request.method;
- if(m==="POST"&&/^\/recruitments\/[^/]+\/conversation$/.test(p)){
-  const rid=p.split("/")[2];if(!UUID.test(rid))return reply({error:"not_found"},404,headers);
+ if(m==="POST"&&/^\/recruitments\/[^/]+\/applications\/[^/]+\/conversation$/.test(p)){
+  const rid=p.split("/")[2],applicationId=p.split("/")[4];if(!UUID.test(rid)||!UUID.test(applicationId))return reply({error:"not_found"},404,headers);
   // A conversation is only created after the application has been approved.
   // A single INSERT ... SELECT ties participants to the accepted application.
   const rows=await sql`
    INSERT INTO public.conversations(application_id,organizer_id,applicant_id,recruitment_description)
    SELECT a.id,r.user_id,a.applicant_id,r.description
    FROM public.recruitment_applications a JOIN public.recruitments r ON r.id=a.recruitment_id
-   WHERE r.id=${rid}::uuid AND a.status='accepted'
+   WHERE r.id=${rid}::uuid AND a.id=${applicationId}::uuid AND a.status='accepted'
      AND (r.user_id=${userId}::uuid OR a.applicant_id=${userId}::uuid)
-   ORDER BY a.created_at DESC LIMIT 1
+   LIMIT 1
    ON CONFLICT (application_id) DO UPDATE SET application_id=excluded.application_id
    RETURNING id
   `;
