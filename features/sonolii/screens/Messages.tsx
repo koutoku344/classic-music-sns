@@ -10,6 +10,7 @@ export default function Messages({navigate}:{navigate:(s:ScreenName,params?:Reco
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
  const [search,setSearch]=useState('');
+ useEffect(()=>{if(!isSignedIn)return;const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void listConversations(getToken).then(setRows).catch(()=>{});},10000);return()=>window.clearInterval(timer);},[isSignedIn,getToken]);
  useEffect(()=>{
   if(!isLoaded)return;
   if(!isSignedIn){setLoading(false);return;}
