@@ -1,60 +1,56 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { handleMessages, isMessageRoute } from '../../backend/src/messages.ts';
+import { handleMessages,isMessageRoute } from '../../backend/src/messages.ts';
 
-const RECRUIT='076fbdf9-c414-4937-8074-2f0c5b700316';
-const APPLICATION='176fbdf9-c414-4937-8074-2f0c5b700316';
-const CONVERSATION='276fbdf9-c414-4937-8074-2f0c5b700316';
 const USER='376fbdf9-c414-4937-8074-2f0c5b700316';
-const request=(method,path,body)=>new Request('https://test.invalid'+path,
- {method,...(body===undefined?{}:{body:JSON.stringify(body)})});
-const run=(req,sql,user)=>handleMessages(req,sql,user,{});
-test('STEP13: routes identified, authorization required for every route',async()=>{
- for(const route of ['/conversations','/conversations/'+CONVERSATION,
- '/conversations/'+CONVERSATION+'/messages','/conversations/'+CONVERSATION+'/read',
- '/recruitments/'+RECRUIT+'/applications/'+APPLICATION+'/conversation']){
-  assert.equal(isMessageRoute(route),true,route);
-  const res=await run(request('GET',route),()=>{throw Error('No DB for guest');},null);
-  assert.equal(res.status,401);
+const PEER='176fbdf9-c414-4937-8074-2f0c5b700316';
+const CONV='276fbdf9-c414-4937-8074-2f0c5b700316';
+const req=(method,path,body)=>new Request('https://test.invalid'+path,{method,...(body===undefined?{}:{body:JSON.stringify(body)})});
+const run=(r,sql,user=USER)=>handleMessages(r,sql,user,{});
+test('STEP13: authentication is required on all DM routes',async()=>{
+ for(const path of ['/conversations','/conversations/'+CONV,'/conversations/'+CONV+'/messages','/conversations/'+CONV+'/read','/users/'+PEER+'/conversation']){
+  assert.equal(isMessageRoute(path),true);
+  assert.equal((await run(req('GET',path),()=>{throw Error('database reached');},null)).status,401);
  }
+ assert.equal(isMessageRoute('/recruitments/'+CONV+'/conversation'),false);
 });
-test('STEP13: unauthenticated and malformed chat writes rejected',async()=>{
- const db=()=>{throw Error('Invalid input must not touch DB');};
- for(const body of [{body:''},{body:' '},{body:'x'.repeat(2001)},{body:42},{other:'abc'},null]){
-  const res=await run(request('POST','/conversations/'+CONVERSATION+'/messages',body),db,USER);
-  assert.equal(res.status,400);
- }
-});
-test('STEP13: conversation creation SQL bound to accepted application and caller identity',async()=>{
- let invoked=false;
+test('STEP13: profile DM is canonical and requires both profiles',async()=>{
  const sql=async(strings,...args)=>{
-  invoked=true;
   const statement=strings.join('?');
-  assert.match(statement,/a.id=\?::uuid AND a.status='accepted'/);
-  assert.match(statement,/a.applicant_id=\?::uuid/);
-  assert.match(statement,/ON CONFLICT \(application_id\)/);
-  assert.deepEqual(args.slice(0,2),[RECRUIT,APPLICATION]);
-  return [];
+  assert.match(statement,/LEAST\(\?::uuid,\?::uuid\),GREATEST/);
+  assert.match(statement,/EXISTS\(SELECT 1 FROM public.profiles/);
+  assert.match(statement,/ON CONFLICT\(user_a_id,user_b_id\)/);
+  assert.equal(args[0],USER);assert.equal(args[1],PEER);
+  return [{id:CONV}];
  };
- const res=await run(request('POST','/recruitments/'+RECRUIT+'/applications/'+APPLICATION+'/conversation'),sql,USER);
- assert.equal(res.status,403);
- assert.equal(invoked,true);
+ const r=await run(req('POST','/users/'+PEER+'/conversation'),sql);
+ assert.equal(r.status,200);
+ assert.equal((await r.json()).conversationId,CONV);
 });
-test('STEP13: messages and reads filter by actual participant identity in SQL',()=>{
- const code=readFileSync(new URL('../../backend/src/messages.ts',import.meta.url),'utf8');
- assert.match(code,/dm.sender_id<>\$\{userId\}::uuid/);
- assert.match(code,/c.organizer_id=\$\{userId\}::uuid OR c.applicant_id=\$\{userId\}::uuid/);
- assert.match(code,/sender_id,body/);
+test('STEP13: self conversation and malformed message rejected before SQL',async()=>{
+ const sql=()=>{throw Error('database reached');};
+ assert.equal((await run(req('POST','/users/'+USER+'/conversation'),sql)).status,400);
+ for(const body of [{body:''},{body:' '},{body:'x'.repeat(2001)},{body:42},{other:'a'},null])
+  assert.equal((await run(req('POST','/conversations/'+CONV+'/messages',body),sql)).status,400);
+});
+test('STEP13: all message reads/writes restricted to conversation participants',()=>{
+ const src=readFileSync(new URL('../../backend/src/messages.ts',import.meta.url),'utf8');
+ assert.match(src,/c.user_a_id=\$\{userId\}::uuid OR c.user_b_id=\$\{userId\}::uuid/);
  const migration=readFileSync(new URL('../../db/migrations/026_create_conversations.sql',import.meta.url),'utf8');
- assert.match(migration,/ON DELETE SET NULL/);
- assert.match(migration,/UNIQUE REFERENCES public.recruitment_applications/);
- assert.match(migration,/direct_messages_conversation_idx/);
+ assert.match(migration,/conversation_unique_pair/);
+ assert.match(migration,/direct_message_notify/);
+ assert.match(migration,/direct_message:/);
+ assert.doesNotMatch(migration,/recruitment_applications/);
 });
-test('STEP13: message screens do not use sample conversations',()=>{
- const root=new URL('../../features/sonolii/screens/',import.meta.url);
- for(const name of ['Messages.tsx','Conversation.tsx']){
-  const code=readFileSync(new URL(name,root),'utf8');
-  assert.doesNotMatch(code,/from '\.\.\/data'/);
- }
+test('STEP13: all screens use API, not sample data, and notification links target a DM',()=>{
+ const base=new URL('../../features/sonolii/',import.meta.url);
+ const list=readFileSync(new URL('screens/Messages.tsx',base),'utf8');
+ const detail=readFileSync(new URL('screens/Conversation.tsx',base),'utf8');
+ const profile=readFileSync(new URL('screens/UserProfile.tsx',base),'utf8');
+ const notifications=readFileSync(new URL('screens/Notifications.tsx',base),'utf8');
+ for(const src of [list,detail])assert.doesNotMatch(src,/from '\.\.\/data'/);
+ assert.match(profile,/getOrCreateConversation/);
+ assert.match(notifications,/direct_message/);
+ assert.match(detail,/setInterval/);
 });
