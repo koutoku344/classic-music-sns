@@ -23,6 +23,7 @@ export type RecruitmentRow = {
   description: string;
   status: 'open' | 'closed';
   applicants: number;
+  instrument_counts?: Record<string, number>;
   my_application?: 'pending' | 'accepted' | 'rejected' | null;
   created_at: string;
 };
@@ -31,6 +32,8 @@ export type ApplicantRow = {
   applicant_id: string;
   status: 'pending' | 'accepted' | 'rejected';
   display_name: string;
+  message: string;
+  instrument: string | null;
   created_at: string;
 };
 
@@ -80,8 +83,8 @@ export async function setRecruitmentStatus(id: string, status: 'open' | 'closed'
 export async function deleteRecruitment(id: string, getToken: TokenGetter): Promise<void> {
   await request('/recruitments/' + encodeURIComponent(id), getToken, { method: 'DELETE' });
 }
-export async function applyRecruitment(id: string, getToken: TokenGetter): Promise<void> {
-  await request('/recruitments/' + encodeURIComponent(id) + '/applications', getToken, { method: 'POST' });
+export async function applyRecruitment(id: string, getToken: TokenGetter, input: { message: string; instrument: string | null } = { message: '', instrument: null }): Promise<void> {
+  await request('/recruitments/' + encodeURIComponent(id) + '/applications', getToken, { method: 'POST', body: JSON.stringify(input) });
 }
 export async function cancelRecruitmentApplication(id: string, getToken: TokenGetter): Promise<void> {
   await request('/recruitments/' + encodeURIComponent(id) + '/applications', getToken, { method: 'DELETE' });
