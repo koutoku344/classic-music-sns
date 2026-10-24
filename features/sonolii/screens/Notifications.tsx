@@ -18,6 +18,7 @@ const labels: Record<string, string> = {
   recruitment_application: 'あなたの募集に応募がありました',
   recruitment_accepted: 'あなたの募集応募を承認しました',
   recruitment_rejected: 'あなたの募集応募を却下しました',
+  direct_message: 'メッセージが届きました',
 };
 
 function NoticeIcon({ type }: { type: string }) {
@@ -138,6 +139,10 @@ export default function Notifications({ navigate }: {
   };
 
   const openNotification = (item: NotificationRow) => {
+    if (item.type === 'direct_message') {
+      if(item.conversationId)navigate('conversation',{id:item.conversationId});
+      return;
+    }
     if (item.type.startsWith('recruitment_')) {
       if (item.recruitmentId) navigate('recruitmentDetail', { id: item.recruitmentId, from: 'notifications' });
       return;
@@ -154,6 +159,7 @@ export default function Notifications({ navigate }: {
   };
 
   const canOpen = (item: NotificationRow) =>
+    (item.type === 'direct_message' && !!item.conversationId) ||
     (item.type.startsWith('recruitment_') && !!item.recruitmentId) ||
     ['follow', 'follow_request', 'follow_accepted'].includes(item.type)
       ? !!item.actorId

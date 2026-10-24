@@ -6,6 +6,7 @@ import { handleFeedback, isFeedbackRoute, isPublicFeedbackRead } from "./feedbac
 import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 import { handleRecruitments, isRecruitmentRoute, isPublicRecruitmentRead } from "./recruitments";
+import { handleMessages, isMessageRoute } from "./messages";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -333,7 +334,8 @@ export default {
       practicesList || practicesCreate || practiceGet || practicePatch || practiceDelete ||
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
       isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
-      isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname))) {
+      isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname) ||
+      isMessageRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -527,6 +529,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isMessageRoute(url.pathname)) {
+        return await handleMessages(request, sql, userId, headers);
+      }
 
       if (isRecruitmentRoute(url.pathname)) {
         return await handleRecruitments(request, sql, userId, headers);

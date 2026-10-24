@@ -3,7 +3,7 @@ import { API_BASE } from './repertoireApi';
 export type NotificationType =
   | 'post_like' | 'post_comment' | 'comment_reply' | 'comment_like'
   | 'follow' | 'follow_request' | 'follow_accepted'
-  | 'recruitment_application' | 'recruitment_accepted' | 'recruitment_rejected';
+  | 'recruitment_application' | 'recruitment_accepted' | 'recruitment_rejected' | 'direct_message';
 
 export type NotificationRow = {
   id: string;
@@ -15,6 +15,7 @@ export type NotificationRow = {
   targetPostId: string | null;
   pendingFollowId: string | null;
   recruitmentId: string | null;
+  conversationId: string | null;
 };
 
 export type NotificationPage = {

@@ -25,6 +25,7 @@ export type RecruitmentRow = {
   applicants: number;
   instrument_counts?: Record<string, number>;
   my_application?: 'pending' | 'accepted' | 'rejected' | null;
+  my_application_id?: string | null;
   created_at: string;
 };
 export type ApplicantRow = {
