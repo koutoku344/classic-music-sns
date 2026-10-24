@@ -33,6 +33,24 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
  const id=match?.[1], app=match?.[2], action=match?.[3];
  if(id&&!idOK(id))return resp({error:"not_found"},404,headers);
  if(app&&!idOK(app))return resp({error:"not_found"},404,headers);
+ if(m==="GET"&&p==="/me/recruitments"){
+  if(!userId)return resp({error:"unauthorized"},401,headers);
+  const cursor=url.searchParams.get("cursor"),parts=cursor?.split("|");
+  if(cursor&&(parts?.length!==2||!Number.isFinite(Date.parse(parts[0]))||!idOK(parts[1])))return resp({error:"invalid_cursor"},400,headers);
+  const rows=await sql`
+   SELECT r.*,p.display_name,pi.title AS piece_title,c.name AS composer_name,
+    (SELECT count(*)::int FROM public.recruitment_applications a WHERE a.recruitment_id=r.id AND a.status='accepted') AS applicants
+   FROM public.recruitments r
+   JOIN public.profiles p ON p.user_id=r.user_id
+   LEFT JOIN public.pieces pi ON pi.id=r.piece_id
+   LEFT JOIN public.composers c ON c.id=pi.composer_id
+   WHERE r.user_id=${userId}::uuid
+     AND (${parts?.[0]??null}::timestamptz IS NULL OR (r.created_at,r.id)<(${parts?.[0]??null}::timestamptz,${parts?.[1]??null}::uuid))
+   ORDER BY r.created_at DESC,r.id DESC LIMIT 21
+  `;
+  const page=rows.slice(0,20),last=page.at(-1);
+  return resp({recruitments:page,nextCursor:rows.length>20&&last?`${last.created_at.toISOString?.()??last.created_at}|${last.id}`:null},200,headers);
+ }
  if(m==="GET"&&p==="/recruitments"){
   const keyword=(url.searchParams.get("q")??"").trim();
   if(keyword.length>100)return resp({error:"invalid_query"},400,headers);
