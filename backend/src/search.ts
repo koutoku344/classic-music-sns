@@ -12,12 +12,12 @@ export async function handleUserSearch(request:Request,sql:Sql,headers:Record<st
  if([...params.keys()].some(k=>!["q","instrument","region","cursor"].includes(k)))return response({error:"invalid_filter"},400,headers);
  const q=(params.get("q")??"").trim(),instrument=(params.get("instrument")??"").trim(),region=(params.get("region")??"").trim(),cursor=params.get("cursor");
  if(q.length>100||instrument.length>50||region.length>50||(cursor&&!UUID.test(cursor)))return response({error:"invalid_filter"},400,headers);
- const escaped=q.replace(/[\\%_]/g,s=>"\\"+s);
+ const escaped=q.replace(/[!%_]/g,s=>"!"+s);
  const rows=await sql`
   SELECT p.user_id,p.display_name,p.instruments,p.region
   FROM public.profiles p
   WHERE p.visibility='public'
-    AND (${q}='' OR p.display_name ILIKE '%'||${escaped}||'%' ESCAPE '\\')
+    AND (${q}='' OR p.display_name ILIKE '%'||${escaped}||'%' ESCAPE '!')
     AND (${instrument}='' OR ${instrument}=ANY(p.instruments))
     AND (${region}='' OR p.region=${region})
     AND (${cursor}::uuid IS NULL OR p.user_id<${cursor}::uuid)
