@@ -16,3 +16,13 @@ test('STEP15 review lists release-blocking mock data rather than silently approv
  assert.match(doc,/iPhone Safari/);
  assert.match(doc,/Android Chrome/);
 });
+
+test('STEP15 MyPage avoids fabricated social, trophy, premium and recruitment data',()=>{
+ const src=read('features/sonolii/screens/MyPage.tsx');
+ assert.doesNotMatch(src,/from '\.\.\/data'/);
+ assert.doesNotMatch(src,/me\.followers|me\.following|me\.trophies/);
+ assert.doesNotMatch(src,/20GB・長期保存/);
+ assert.match(src,/listRecruitments/);
+ assert.match(src,/r\.user_id===profile\.user_id/);
+ assert.match(src,/自分が作成した募集はありません/);
+});
