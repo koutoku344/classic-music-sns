@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { users } from '../data';
+import { searchUsers, type SearchUser } from '../lib/searchApi';
 import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { loadCatalog, type SelectablePiece } from '../lib/practiceApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
-import Avatar from '../components/Avatar';
 import RecruitmentCard from '../components/RecruitmentCard';
 import PiecePicker from '../components/PiecePicker';
-import { Search as SearchIcon, Music2, MapPin, X } from 'lucide-react';
+import { Search as SearchIcon, Music2, MapPin, X, UserRound } from 'lucide-react';
 
 interface SearchProps {
   navigate: (s: ScreenName, params?: Record<string, string>) => void;
@@ -20,6 +19,13 @@ type Tab = 'users' | 'posts' | 'recruitments';
 export default function Search({ navigate }: SearchProps) {
   const [tab, setTab] = useState<Tab>('users');
   const [userQuery, setUserQuery] = useState('');
+  const [keyword,setKeyword]=useState('');
+  const [userRows,setUserRows]=useState<SearchUser[]>([]);
+  const [userCursor,setUserCursor]=useState<string|null>(null);
+  const [userBusy,setUserBusy]=useState(false);
+  const [userError,setUserError]=useState('');
+  const [userInstrument,setUserInstrument]=useState('all');
+  const [userRegion,setUserRegion]=useState('all');
   const { isLoaded, getToken } = useAuth();
   const [selectedPiece, setSelectedPiece] = useState<Piece | null>(null);
   const [catalog, setCatalog] = useState<SelectablePiece[]>([]);
@@ -51,7 +57,7 @@ export default function Search({ navigate }: SearchProps) {
     setPostsError('');
     setPostRows([]);
     setPostCursor(null);
-    void listPosts(getToken, null, selectedPiece?.id ?? null)
+    void listPosts(getToken, null, selectedPiece?.id ?? null, keyword)
       .then(data => {
         if (active) { setPostRows(data.posts); setPostCursor(data.nextCursor); }
       })
@@ -60,13 +66,13 @@ export default function Search({ navigate }: SearchProps) {
       })
       .finally(() => { if (active) setPostsLoading(false); });
     return () => { active = false; };
-  }, [isLoaded, getToken, tab, selectedPiece?.id]);
+  }, [isLoaded, getToken, tab, selectedPiece?.id, keyword]);
 
   async function loadMorePosts() {
     if (!postCursor || postsMoreBusy) return;
     setPostsMoreBusy(true);
     try {
-      const data = await listPosts(getToken, postCursor, selectedPiece?.id ?? null);
+      const data = await listPosts(getToken, postCursor, selectedPiece?.id ?? null, keyword);
       setPostRows(previous => [...previous, ...data.posts.filter(
         item => !previous.some(p => p.id === item.id)
       )]);
@@ -83,10 +89,27 @@ export default function Search({ navigate }: SearchProps) {
   const [rPurpose, setRPurpose] = useState('all');
   const [rLevel, setRLevel] = useState('all');
 
-  const uq = userQuery.toLowerCase();
-  const filteredUsers = users.filter(
-    (u) => u.name.toLowerCase().includes(uq) || u.instrument.toLowerCase().includes(uq) || u.region.toLowerCase().includes(uq)
-  );
+  useEffect(()=>{
+    if(!isLoaded||tab!=='users')return;
+    let active=true;
+    setUserBusy(true);setUserError('');setUserCursor(null);
+    const timer=window.setTimeout(()=>{
+      void searchUsers({keyword:userQuery,instrument:userInstrument,region:userRegion},getToken)
+        .then(page=>{if(active){setUserRows(page.users);setUserCursor(page.nextCursor);}})
+        .catch(e=>{if(active)setUserError(e instanceof Error?e.message:'検索に失敗しました。');})
+        .finally(()=>{if(active)setUserBusy(false);});
+    },250);
+    return()=>{active=false;window.clearTimeout(timer);};
+  },[isLoaded,getToken,tab,userQuery,userInstrument,userRegion]);
+  async function moreUsers(){
+    if(!userCursor||userBusy)return;
+    setUserBusy(true);
+    try{
+      const data=await searchUsers({keyword:userQuery,instrument:userInstrument,region:userRegion,cursor:userCursor},getToken);
+      setUserRows(prev=>[...prev,...data.users.filter(u=>!prev.some(x=>x.user_id===u.user_id))]);
+      setUserCursor(data.nextCursor);
+    }catch(e){setUserError(String(e));}finally{setUserBusy(false);}
+  }
 
   const filteredRecruitments = recruitments;
   useEffect(() => {
@@ -98,19 +121,19 @@ export default function Search({ navigate }: SearchProps) {
     setRecruitCursor(null);
     void listRecruitments(getToken, {
       instrument:rInstrument, region:rRegion, level:rLevel, purpose:rPurpose,
-      pieceId:selectedPiece?.id??null
+      pieceId:selectedPiece?.id??null,keyword
     }).then(data => {
       if(active){setRecruitments(data.recruitments);setRecruitCursor(data.nextCursor);}
     }).catch(e => {if(active)setRecruitError(e instanceof Error?e.message:'募集を検索できませんでした。');})
       .finally(()=>{if(active)setRecruitBusy(false);});
     return ()=>{active=false;};
-  }, [isLoaded,getToken,tab,rInstrument,rRegion,rLevel,rPurpose,selectedPiece?.id]);
+  }, [isLoaded,getToken,tab,rInstrument,rRegion,rLevel,rPurpose,selectedPiece?.id,keyword]);
 
   async function loadMoreRecruitments(){
     if (!recruitCursor || recruitBusy)return;
     setRecruitBusy(true);
     try{
-      const data=await listRecruitments(getToken,{cursor:recruitCursor,instrument:rInstrument,region:rRegion,level:rLevel,purpose:rPurpose,pieceId:selectedPiece?.id??null});
+      const data=await listRecruitments(getToken,{cursor:recruitCursor,instrument:rInstrument,region:rRegion,level:rLevel,purpose:rPurpose,pieceId:selectedPiece?.id??null,keyword});
       setRecruitments(prev=>[...prev,...data.recruitments.filter(r=>!prev.some(x=>x.id===r.id))]);
       setRecruitCursor(data.nextCursor);
     }catch(e){setRecruitError(e instanceof Error?e.message:'募集を追加取得できませんでした。');}
@@ -152,28 +175,38 @@ export default function Search({ navigate }: SearchProps) {
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <label className="text-xs text-ink-500">楽器
+              <select className={selectCls} value={userInstrument} onChange={e=>setUserInstrument(e.target.value)}>
+                {['all','Piano','Violin','Cello','Viola','Flute','Clarinet','Oboe','Trumpet','Guitar','その他'].map(v=><option key={v} value={v}>{v==='all'?'全て':v}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-ink-500">地域
+              <select className={selectCls} value={userRegion} onChange={e=>setUserRegion(e.target.value)}>
+                {['all','東京','大阪','神奈川','京都','愛知','兵庫','福岡','非公開'].map(v=><option key={v} value={v}>{v==='all'?'全て':v}</option>)}
+              </select>
+            </label>
+          </div>
+          {userError&&<p role="alert" className="text-red-600 text-sm">{userError}</p>}
+          {userBusy&&<p className="text-sm text-ink-500">検索中...</p>}
           <div className="space-y-3">
-            {filteredUsers.map((u) => (
-              <div key={u.id} className="bg-white rounded-xl border border-ink-100 p-4 flex items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer animate-slide-up" onClick={() => navigate('userProfile', { id: u.id })}>
-                <Avatar user={u} size="md" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-ink-900 text-sm">{u.name}</p>
-                  <div className="flex items-center gap-3 text-xs text-ink-400 mt-0.5">
-                    <span className="flex items-center gap-1"><Music2 size={12} /> {u.instrument}</span>
-                    <span className="flex items-center gap-1"><MapPin size={12} /> {u.region}</span>
-                  </div>
-                </div>
-                <span className="text-xs text-ink-400">{u.followers} フォロワー</span>
+            {userRows.map(u=><button key={u.user_id} type="button" onClick={()=>navigate('userProfile',{id:u.user_id})}
+              className="w-full text-left bg-white rounded-xl border border-ink-100 p-4 flex gap-3 items-center">
+              <UserRound size={32} className="text-ink-400 flex-shrink-0"/>
+              <div><p className="font-medium text-sm">{u.display_name}</p>
+                <p className="text-xs text-ink-500">{u.instruments?.join('・')||'楽器未設定'} · {u.region||'地域未設定'}</p>
               </div>
-            ))}
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-20 text-ink-400">
-                <p>該当する結果がありません</p>
-              </div>
-            )}
+            </button>)}
+            {!userBusy&&userRows.length===0&&!userError&&<p className="text-ink-400 text-center py-12">該当するユーザーがいません</p>}
+            {userCursor&&<button onClick={()=>void moreUsers()} disabled={userBusy} className="w-full border rounded-lg p-3 text-sm text-teal-700">さらに表示</button>}
           </div>
         </>
       )}
+
+      {tab !== 'users' && <label className="block mb-4 text-sm text-ink-600">キーワード検索（任意）
+        <input value={keyword} onChange={e=>setKeyword(e.target.value)} maxLength={100} placeholder="本文・作曲者・曲名"
+          className="mt-1 w-full px-4 py-3 bg-white border border-ink-200 rounded-xl text-sm"/>
+      </label>}
 
       {tab === 'posts' && (
         <>
