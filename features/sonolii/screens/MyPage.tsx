@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { me, recruitments } from '../data';
+import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
 import { getAllPractices } from '../lib/practiceApi';
@@ -10,8 +10,6 @@ import type { MediaUsage } from '../lib/mediaApi';
 import type { PracticeRow } from '../lib/practiceApi';
 import { API_BASE, toPiece } from '../lib/repertoireApi';
 import type { RepertoireResponse } from '../lib/repertoireApi';
-import Avatar from '../components/Avatar';
-import { TrophyCard } from '../components/Trophy';
 import {
   Heart,
   MessageCircle,
@@ -20,8 +18,8 @@ import {
   ChevronRight,
   Calendar,
   Clock,
-  Crown,
   HardDrive,
+  UserRound,
 } from 'lucide-react';
 
 type ProfileResponse = {
@@ -70,6 +68,9 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [practiceError, setPracticeError] = useState('');
   const [mediaUsage, setMediaUsage] = useState<MediaUsage | null>(null);
   const [mediaUsageError, setMediaUsageError] = useState('');
+  const [myRecruitments,setMyRecruitments]=useState<RecruitmentRow[]>([]);
+  const [recruitmentsLoading,setRecruitmentsLoading]=useState(false);
+  const [recruitmentsError,setRecruitmentsError]=useState('');
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -203,10 +204,32 @@ export default function MyPage({ navigate }: MyPageProps) {
     }
   }
 
-  const myRecruitments = recruitments.filter((r) => r.user.id === 'me');
-  if (myRecruitments.length === 0) {
-    myRecruitments.push(recruitments[0], recruitments[2]);
-  }
+  useEffect(()=>{
+    if(!isLoaded||!isSignedIn||!profile?.user_id){
+      setMyRecruitments([]);setRecruitmentsLoading(false);setRecruitmentsError('');
+      return;
+    }
+    let active=true;
+    setRecruitmentsLoading(true);setRecruitmentsError('');setMyRecruitments([]);
+    (async()=>{
+      try{
+        // Recruitment listing is paginated; collect up to five pages of public
+        // listings and filter by the authenticated profile's user id.
+        let cursor:string|null=null;
+        const mine:RecruitmentRow[]=[];
+        for(let page=0;page<5;page++){
+          const result=await listRecruitments(getToken,{cursor});
+          mine.push(...result.recruitments.filter(r=>r.user_id===profile.user_id));
+          cursor=result.nextCursor;
+          if(!cursor)break;
+        }
+        if(active)setMyRecruitments(mine);
+      }catch(e){
+        if(active)setRecruitmentsError(e instanceof Error?e.message:'募集を取得できませんでした。');
+      }finally{if(active)setRecruitmentsLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[isLoaded,isSignedIn,profile?.user_id,getToken]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -232,7 +255,7 @@ export default function MyPage({ navigate }: MyPageProps) {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <div className="bg-white rounded-2xl border border-ink-100 p-6 mb-5 animate-slide-up">
         <div className="flex items-start gap-4 mb-4">
-          <Avatar user={me} size="xl" />
+          <div className="w-20 h-20 rounded-full bg-ink-100 text-ink-400 flex items-center justify-center flex-shrink-0" aria-label="プロフィール画像未設定"><UserRound size={36}/></div>
           <div className="flex-1 min-w-0">
             <h1 className="font-serif text-xl font-bold text-ink-900">
               {profile?.display_name || 'プロフィール未設定'}
@@ -251,39 +274,7 @@ export default function MyPage({ navigate }: MyPageProps) {
           <p role="alert" className="text-xs text-red-600">{profileError}</p>
         )}
 
-        <div className="flex items-center gap-6 mb-4 text-sm">
-          <div>
-            <span className="font-bold text-ink-900">{me.following}</span>{' '}
-            <span className="text-ink-400">フォロー中</span>
-          </div>
-          <div>
-            <span className="font-bold text-ink-900">{me.followers}</span>{' '}
-            <span className="text-ink-400">フォロワー</span>
-          </div>
-        </div>
       </div>
-
-      {/* Trophies */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {me.trophies.map((t) => (
-          <TrophyCard key={t.type} trophy={t} />
-        ))}
-      </div>
-
-      {/* Premium banner */}
-      <button
-        onClick={() => navigate('subscription')}
-        className="w-full bg-gradient-to-r from-gold-50 to-amber-50 border border-gold-200 rounded-2xl p-4 mb-5 flex items-center gap-3 hover:shadow-sm transition-shadow text-left"
-      >
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-300 to-gold-500 flex items-center justify-center flex-shrink-0">
-          <Crown size={20} className="text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gold-800">Premiumプラン</p>
-          <p className="text-xs text-gold-600 mt-0.5">20GB・長期保存でさらに練習を蓄積</p>
-        </div>
-        <ChevronRight size={18} className="text-gold-400 flex-shrink-0" />
-      </button>
 
       {/* Storage usage from authenticated Backend API */}
       <button
@@ -399,33 +390,17 @@ export default function MyPage({ navigate }: MyPageProps) {
           </button>
         )}
 
-        {showRecruitments && myRecruitments.map((r) => (
-          <button
-            key={`rec-${r.id}`}
-            onClick={() => navigate('recruitmentDetail', { id: r.id })}
-            className="bg-white rounded-xl border border-ink-100 p-3 hover:shadow-md transition-shadow text-left animate-slide-up"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
-                r.status === 'open' ? 'bg-sage-100 text-sage-700' : 'bg-ink-100 text-ink-500'
-              }`}>
-                {r.status === 'open' ? '募集中' : '終了'}
-              </span>
-            </div>
-            <p className="text-xs font-serif text-ink-800 truncate">
-              <span className="italic text-ink-500">{r.piece.composer}</span> / {r.piece.title}
-            </p>
-            <div className="flex flex-wrap gap-1 mt-2">
-              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">
-                {r.instrument}
-              </span>
-              <span className="text-[10px] text-ink-500 bg-ink-50 px-1.5 py-0.5 rounded">
-                {r.region}
-              </span>
-            </div>
-            <p className="text-xs text-ink-400 mt-2">応募 {r.applicants}件</p>
-          </button>
-        ))}
+        {showRecruitments && recruitmentsLoading && <p className="text-sm text-ink-500 col-span-2">募集を読み込み中...</p>}
+        {showRecruitments && recruitmentsError && <p role="alert" className="text-sm text-red-600 col-span-2">{recruitmentsError}</p>}
+        {showRecruitments && !recruitmentsLoading && !recruitmentsError && myRecruitments.length===0 &&
+          <p className="text-sm text-ink-500 col-span-2">自分が作成した募集はありません。</p>}
+        {showRecruitments && myRecruitments.map(r=><button key={r.id}
+          onClick={()=>navigate('recruitmentDetail',{id:r.id})}
+          className="col-span-2 bg-white rounded-xl border border-ink-100 p-4 text-left hover:border-teal-300">
+          <p className="text-sm font-semibold text-ink-800">{r.piece_title ?? '曲の指定なし'}</p>
+          <p className="text-xs text-ink-500 mt-1">{r.composer_name ?? ''} {r.instruments.join('・')} / {r.regions.join('・')}</p>
+          <p className="text-xs text-ink-500 mt-2">{r.status==='open'?'募集中':'終了'} · 承認済み応募 {r.applicants}件</p>
+        </button>)}
       </div>
 
       {showPractice && (
