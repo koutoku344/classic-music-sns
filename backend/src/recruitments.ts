@@ -34,6 +34,8 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
  if(id&&!idOK(id))return resp({error:"not_found"},404,headers);
  if(app&&!idOK(app))return resp({error:"not_found"},404,headers);
  if(m==="GET"&&p==="/recruitments"){
+  const keyword=(url.searchParams.get("q")??"").trim();
+  if(keyword.length>100)return resp({error:"invalid_query"},400,headers);
   const piece=url.searchParams.get("pieceId"),inst=url.searchParams.get("instrument"),region=url.searchParams.get("region"),level=url.searchParams.get("level"),purpose=url.searchParams.get("purpose");
   if((piece&&!idOK(piece))||(inst&&!INST.includes(inst))||(region&&!REGION.includes(region))||(level&&!LEVELS.includes(level))||(purpose&&!PURPOSES.includes(purpose)))return resp({error:"invalid_filter"},400,headers);
   const cursor=url.searchParams.get("cursor");
@@ -46,7 +48,8 @@ export async function handleRecruitments(request:Request,sql:Sql,userId:string|n
    JOIN public.profiles p ON p.user_id=r.user_id
    LEFT JOIN public.pieces pi ON pi.id=r.piece_id
    LEFT JOIN public.composers c ON c.id=pi.composer_id
-   WHERE (${piece}::uuid IS NULL OR r.piece_id=${piece}::uuid)
+   WHERE (${keyword}='' OR r.description ILIKE '%'||${keyword}||'%' OR COALESCE(pi.title,'') ILIKE '%'||${keyword}||'%' OR COALESCE(c.name,'') ILIKE '%'||${keyword}||'%')
+     AND (${piece}::uuid IS NULL OR r.piece_id=${piece}::uuid)
      AND (${inst}::text IS NULL OR ${inst} = ANY(r.instruments))
      AND (${region}::text IS NULL OR ${region} = ANY(r.regions))
      AND (${level}::text IS NULL OR r.level=${level})
