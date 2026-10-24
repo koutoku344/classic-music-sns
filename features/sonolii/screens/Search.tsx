@@ -165,7 +165,7 @@ export default function Search({ navigate }: SearchProps) {
             <input
               value={userQuery}
               onChange={(e) => setUserQuery(e.target.value)}
-              placeholder="ユーザー名、楽器、地域で検索..."
+              placeholder="ユーザー名で検索..."
               className="w-full pl-12 pr-12 py-3.5 bg-white border border-ink-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
             {userQuery && (
@@ -255,14 +255,14 @@ export default function Search({ navigate }: SearchProps) {
               <label className="block text-xs font-medium text-ink-500 mb-1">楽器</label>
               <select value={rInstrument} onChange={(e) => setRInstrument(e.target.value)} className={selectCls}>
                 <option value="all">全て</option>
-                <option>Piano</option><option>Violin</option><option>Cello</option><option>Flute</option>
+                <option>Piano</option><option>Violin</option><option>Cello</option><option>Viola</option><option>Flute</option><option>Clarinet</option><option>Oboe</option><option>Trumpet</option><option>Guitar</option><option>その他</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-ink-500 mb-1">地域</label>
               <select value={rRegion} onChange={(e) => setRRegion(e.target.value)} className={selectCls}>
                 <option value="all">全て</option>
-                <option>東京</option><option>大阪</option><option>神奈川</option><option>京都</option>
+                <option>東京</option><option>大阪</option><option>神奈川</option><option>京都</option><option>愛知</option><option>兵庫</option><option>福岡</option><option>オンライン</option>
               </select>
             </div>
             <div>
