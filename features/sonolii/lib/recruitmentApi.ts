@@ -98,3 +98,9 @@ export async function listRecruitmentApplicants(id: string, getToken: TokenGette
 export async function decideRecruitmentApplicant(id: string, applicationId: string, decision: 'accept' | 'reject', getToken: TokenGetter): Promise<void> {
   await request('/recruitments/' + encodeURIComponent(id) + '/applications/' + encodeURIComponent(applicationId) + '/' + decision, getToken, { method: 'POST' });
 }
+
+export async function listMyRecruitments(getToken:TokenGetter,cursor:string|null=null):Promise<{recruitments:RecruitmentRow[];nextCursor:string|null}>{
+ const params=new URLSearchParams();
+ if(cursor)params.set('cursor',cursor);
+ return await (await request('/me/recruitments?'+params,getToken)).json();
+}
