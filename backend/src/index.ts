@@ -336,6 +336,7 @@ export default {
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
       isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
       isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname) ||
+      url.pathname === "/me/recruitments" ||
       isPublicUserSearch(request.method,url.pathname) ||
       isMessageRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
@@ -541,7 +542,7 @@ export default {
         return await handleMessages(request, sql, userId, headers);
       }
 
-      if (isRecruitmentRoute(url.pathname)) {
+      if (isRecruitmentRoute(url.pathname) || url.pathname === "/me/recruitments") {
         return await handleRecruitments(request, sql, userId, headers);
       }
 
