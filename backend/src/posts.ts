@@ -259,6 +259,8 @@ export async function handlePosts(
     if (pieceId && !UUID.test(pieceId)) {
       return reply({ error: "invalid_piece_id" }, 400, headers);
     }
+    const keyword = (searchParams.get('q') ?? '').trim();
+    if (keyword.length > 100) return reply({ error: 'invalid_query' }, 400, headers);
     const profileId = ownerMatch?.[1] ?? null;
 
     const rows = await sql`
@@ -298,6 +300,9 @@ export async function handlePosts(
           ))
         AND (${profileId}::uuid IS NULL OR p.user_id = ${profileId}::uuid)
         AND (${pieceId}::uuid IS NULL OR p.piece_id = ${pieceId}::uuid)
+        AND (${keyword} = '' OR p.body ILIKE '%' || ${keyword} || '%'
+          OR COALESCE(pc.title, up.title, '') ILIKE '%' || ${keyword} || '%'
+          OR COALESCE(c.name, up.composer, '') ILIKE '%' || ${keyword} || '%')
         AND (${cursor?.at ?? null}::timestamptz IS NULL
              OR (p.created_at, p.id) < (${cursor?.at ?? null}::timestamptz, ${cursor?.id ?? null}::uuid))
       ORDER BY p.created_at DESC, p.id DESC
