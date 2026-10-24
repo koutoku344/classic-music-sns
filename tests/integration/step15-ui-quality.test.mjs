@@ -22,7 +22,15 @@ test('STEP15 MyPage avoids fabricated social, trophy, premium and recruitment da
  assert.doesNotMatch(src,/from '\.\.\/data'/);
  assert.doesNotMatch(src,/me\.followers|me\.following|me\.trophies/);
  assert.doesNotMatch(src,/20GB・長期保存/);
- assert.match(src,/listRecruitments/);
- assert.match(src,/r\.user_id===profile\.user_id/);
+ assert.match(src,/listMyRecruitments/);
+ assert.match(src,/recruitmentsCursor/);
  assert.match(src,/自分が作成した募集はありません/);
+});
+
+test('STEP15 own recruitment route is authenticated and scoped to the owner',()=>{
+ const index=read('backend/src/index.ts');
+ const api=read('backend/src/recruitments.ts');
+ assert.match(index,/url.pathname === "\/me\/recruitments"/);
+ assert.match(api,/if\(!userId\)return resp\(\{error:"unauthorized"\},401,headers\)/);
+ assert.match(api,/WHERE r.user_id=\$\{userId\}::uuid/);
 });
