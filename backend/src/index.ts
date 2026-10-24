@@ -7,6 +7,7 @@ import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 import { handleRecruitments, isRecruitmentRoute, isPublicRecruitmentRead } from "./recruitments";
 import { handleMessages, isMessageRoute } from "./messages";
+import { handleUserSearch, isPublicUserSearch } from "./search";
 
 interface Env extends MediaEnv {
   DATABASE_URL: string;
@@ -335,6 +336,7 @@ export default {
       isMediaRoute(url.pathname) || isPostRoute(url.pathname) ||
       isFeedbackRoute(url.pathname) || isFollowRoute(url.pathname) ||
       isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname) ||
+      isPublicUserSearch(request.method,url.pathname) ||
       isMessageRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
@@ -346,7 +348,8 @@ export default {
       !isPostMediaReadUrl(request.method, url.pathname) &&
       !isPublicFeedbackRead(request.method, url.pathname) &&
       !isPublicFollowRead(request.method, url.pathname) &&
-      !isPublicRecruitmentRead(request.method, url.pathname) && !clerkId) {
+      !isPublicRecruitmentRead(request.method, url.pathname) &&
+      !isPublicUserSearch(request.method,url.pathname) && !clerkId) {
       return reply({ error: "unauthorized" }, 401, headers);
     }
 
@@ -390,6 +393,10 @@ export default {
           viewerId = (viewers[0]?.id as string | undefined) ?? null;
         }
         return await handleRecruitments(request, sql, viewerId, headers);
+      }
+
+      if (isPublicUserSearch(request.method,url.pathname)) {
+        return await handleUserSearch(request,sql,headers);
       }
 
       if (catalogGet) {

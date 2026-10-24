@@ -56,11 +56,12 @@ async function request(path: string, getToken: TokenGetter, init?: RequestInit):
   return res;
 }
 export async function listRecruitments(getToken: TokenGetter, options: {
-  cursor?: string | null; pieceId?: string | null; instrument?: string; region?: string; level?: string; purpose?: string;
+  cursor?: string | null; pieceId?: string | null; instrument?: string; region?: string; level?: string; purpose?: string; keyword?: string;
 } = {}): Promise<{ recruitments: RecruitmentRow[]; nextCursor: string | null }> {
   const q = new URLSearchParams();
   if (options.cursor) q.set('cursor', options.cursor);
   if (options.pieceId) q.set('pieceId', options.pieceId);
+  if (options.keyword?.trim()) q.set('q', options.keyword.trim());
   for (const field of ['instrument', 'region', 'level', 'purpose'] as const) {
     const value = options[field];
     if (value && value !== 'all') q.set(field, value);

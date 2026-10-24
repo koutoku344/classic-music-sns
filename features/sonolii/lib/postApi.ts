@@ -73,10 +73,12 @@ export async function listPosts(
   getToken: TokenGetter,
   cursor: string | null = null,
   pieceId: string | null = null,
+  keyword: string = "",
 ): Promise<PostPage> {
   const qs = new URLSearchParams({ limit: '20' });
   if (cursor) qs.set('cursor', cursor);
   if (pieceId) qs.set('pieceId', pieceId);
+  if (keyword.trim()) qs.set('q', keyword.trim());
   const response = await publicFetch(`/posts?${qs}`, getToken);
   return await response.json() as PostPage;
 }
