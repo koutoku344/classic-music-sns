@@ -48,6 +48,14 @@ export async function handleMessages(request:Request,sql:Sql,userId:string|null,
  }
  if(m==="GET"&&part==="messages"){
   const cursor=q.get("cursor");if(cursor&&!UUID.test(cursor))return reply({error:"invalid_cursor"},400,headers);
+  // An empty message set is indistinguishable from an inaccessible conversation
+  // unless membership is checked independently. Never report 200 to outsiders.
+  const membership=await sql`
+   SELECT 1 FROM public.conversations
+   WHERE id=${id}::uuid AND (user_a_id=${userId}::uuid OR user_b_id=${userId}::uuid)
+   LIMIT 1
+  `;
+  if(!membership.length)return reply({error:"not_found"},404,headers);
   const rows=await sql`
    SELECT dm.id,dm.sender_id,dm.body,dm.created_at FROM public.direct_messages dm
    JOIN public.conversations c ON c.id=dm.conversation_id
