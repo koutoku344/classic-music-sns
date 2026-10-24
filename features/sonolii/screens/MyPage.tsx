@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
-import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
+import { listMyRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
 import { getAllPractices } from '../lib/practiceApi';
@@ -71,6 +71,8 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [myRecruitments,setMyRecruitments]=useState<RecruitmentRow[]>([]);
   const [recruitmentsLoading,setRecruitmentsLoading]=useState(false);
   const [recruitmentsError,setRecruitmentsError]=useState('');
+  const [recruitmentsCursor,setRecruitmentsCursor]=useState<string|null>(null);
+  const [recruitmentsMoreBusy,setRecruitmentsMoreBusy]=useState(false);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -206,30 +208,32 @@ export default function MyPage({ navigate }: MyPageProps) {
 
   useEffect(()=>{
     if(!isLoaded||!isSignedIn||!profile?.user_id){
-      setMyRecruitments([]);setRecruitmentsLoading(false);setRecruitmentsError('');
+      setMyRecruitments([]);setRecruitmentsCursor(null);setRecruitmentsLoading(false);setRecruitmentsError('');
       return;
     }
     let active=true;
-    setRecruitmentsLoading(true);setRecruitmentsError('');setMyRecruitments([]);
+    setRecruitmentsLoading(true);setRecruitmentsError('');setMyRecruitments([]);setRecruitmentsCursor(null);
     (async()=>{
       try{
-        // Recruitment listing is paginated; collect up to five pages of public
-        // listings and filter by the authenticated profile's user id.
-        let cursor:string|null=null;
-        const mine:RecruitmentRow[]=[];
-        for(let page=0;page<5;page++){
-          const result=await listRecruitments(getToken,{cursor});
-          mine.push(...result.recruitments.filter(r=>r.user_id===profile.user_id));
-          cursor=result.nextCursor;
-          if(!cursor)break;
-        }
-        if(active)setMyRecruitments(mine);
+        const result=await listMyRecruitments(getToken);
+        if(active){setMyRecruitments(result.recruitments);setRecruitmentsCursor(result.nextCursor);}
       }catch(e){
         if(active)setRecruitmentsError(e instanceof Error?e.message:'募集を取得できませんでした。');
       }finally{if(active)setRecruitmentsLoading(false);}
     })();
     return()=>{active=false;};
   },[isLoaded,isSignedIn,profile?.user_id,getToken]);
+
+  async function loadMoreRecruitments(){
+    if(!recruitmentsCursor||recruitmentsMoreBusy)return;
+    setRecruitmentsMoreBusy(true);
+    try{
+      const result=await listMyRecruitments(getToken,recruitmentsCursor);
+      setMyRecruitments(old=>[...old,...result.recruitments.filter(r=>!old.some(x=>x.id===r.id))]);
+      setRecruitmentsCursor(result.nextCursor);
+    }catch(e){setRecruitmentsError(e instanceof Error?e.message:'追加の募集を取得できませんでした。');}
+    finally{setRecruitmentsMoreBusy(false);}
+  }
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -401,6 +405,7 @@ export default function MyPage({ navigate }: MyPageProps) {
           <p className="text-xs text-ink-500 mt-1">{r.composer_name ?? ''} {r.instruments.join('・')} / {r.regions.join('・')}</p>
           <p className="text-xs text-ink-500 mt-2">{r.status==='open'?'募集中':'終了'} · 承認済み応募 {r.applicants}件</p>
         </button>)}
+        {showRecruitments && recruitmentsCursor && <button type="button" className="col-span-2 border border-ink-200 rounded-lg p-3 text-sm text-teal-700" disabled={recruitmentsMoreBusy} onClick={()=>void loadMoreRecruitments()}>{recruitmentsMoreBusy?"読み込み中...":"さらに募集を表示"}</button>}
       </div>
 
       {showPractice && (
