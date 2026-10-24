@@ -57,7 +57,8 @@
     "test:step13:write": "playwright test step13-messages-write.spec.mjs",
     "test:step13:authorization": "playwright test step13-messages-authorization.spec.mjs",
     "test:step14:static": "node --test tests/integration/step14-search.test.mjs",
-    "test:step14:check": "npm run test:step14:static && npx tsc --noEmit && npm run build"
+    "test:step14:check": "npm run test:step14:static && npx tsc --noEmit && npm run build",
+    "test:step14:read": "playwright test step14-search-read.spec.mjs"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
