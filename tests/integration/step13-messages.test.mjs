@@ -61,3 +61,29 @@ test('STEP13: API entrypoint allows messaging before auth routing',()=>{
  assert.match(allowlist,/isMessageRoute\(url\.pathname\)/);
  assert.match(src,/return await handleMessages\(request, sql, userId, headers\)/);
 });
+
+test('STEP13: nonparticipant message read returns 404 rather than empty 200',async()=>{
+ let calls=0;
+ const sql=async(strings,...args)=>{
+  calls++;
+  assert.match(strings.join('?'),/FROM public.conversations/);
+  assert.equal(args[0],CONV);
+  assert.equal(args[1],USER);
+  return [];
+ };
+ const result=await run(req('GET','/conversations/'+CONV+'/messages'),sql);
+ assert.equal(result.status,404);
+ assert.deepEqual(await result.json(),{error:'not_found'});
+ assert.equal(calls,1,'must not query message contents for a nonparticipant');
+});
+test('STEP13: participant with no messages still receives 200 and empty list',async()=>{
+ let calls=0;
+ const sql=async(strings)=>{
+  calls++;
+  return calls===1?[{'?column?':1}]:[];
+ };
+ const result=await run(req('GET','/conversations/'+CONV+'/messages'),sql);
+ assert.equal(result.status,200);
+ assert.deepEqual((await result.json()).messages,[]);
+ assert.equal(calls,2);
+});
