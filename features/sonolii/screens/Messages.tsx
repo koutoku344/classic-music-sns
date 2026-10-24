@@ -33,7 +33,7 @@ export default function Messages({navigate}:{navigate:(s:ScreenName,params?:Reco
   {loading&&<p className="text-sm text-ink-500">読み込み中...</p>}
   {!isSignedIn&&!loading&&<p>ログインすると会話を確認できます。</p>}
   {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
-  {!loading&&isSignedIn&&visible.length===0&&<div className="text-center py-16 text-ink-400"><Mail className="mx-auto mb-3"/><p>会話はまだありません。募集の承認後に開始できます。</p></div>}
+  {!loading&&isSignedIn&&!error&&visible.length===0&&<div className="text-center py-16 text-ink-400"><Mail className="mx-auto mb-3"/><p>{search.trim() ? "一致する会話がありません。" : "会話はまだありません。相手のプロフィールからメッセージを始められます。"}</p></div>}
   <div className="space-y-2">
    {visible.map(r=><button key={r.id} onClick={()=>navigate('conversation',{id:r.id})} className="w-full text-left border border-ink-100 bg-white rounded-xl p-4">
     <div className="flex justify-between items-center">
