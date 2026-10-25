@@ -144,7 +144,7 @@ export default function Search({ navigate }: SearchProps) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="font-serif text-2xl font-bold text-ink-900 mb-5">検索</h1>
+      <h1 className="sr-only">検索</h1>
 
       <div className="flex gap-1 mb-5 bg-white rounded-xl border border-ink-100 p-1">
         {(['users', 'posts', 'recruitments'] as const).map((t) => (
@@ -203,7 +203,7 @@ export default function Search({ navigate }: SearchProps) {
         </>
       )}
 
-      {tab !== 'users' && <label className="block mb-4 text-sm text-ink-600">キーワード検索（任意）
+      {tab !== 'users' && <label className="block mb-4 text-sm text-ink-600">キーワード検索
         <input value={keyword} onChange={e=>setKeyword(e.target.value)} maxLength={100} placeholder="本文・作曲者・曲名"
           className="mt-1 w-full px-4 py-3 bg-white border border-ink-200 rounded-xl text-sm"/>
       </label>}
@@ -216,7 +216,7 @@ export default function Search({ navigate }: SearchProps) {
               defaultLibraryMode="catalog"
               selectedPiece={selectedPiece}
               onSelect={setSelectedPiece}
-              label="曲で絞り込む（任意）"
+              label="曲で絞り込む"
               allowFreeInput={false}
               recentPieces={[]}
             />
