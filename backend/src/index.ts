@@ -7,6 +7,7 @@ import { handleFollow, isFollowRoute, isPublicFollowRead } from "./follows";
 import { handleNotifications, isNotificationRoute, cleanupExpiredNotifications } from "./notifications";
 import { handleRecruitments, isRecruitmentRoute, isPublicRecruitmentRead } from "./recruitments";
 import { handleMessages, isMessageRoute } from "./messages";
+import { handleSaved, isSavedRoute } from "./saved";
 import { handleUserSearch, isPublicUserSearch } from "./search";
 
 interface Env extends MediaEnv {
@@ -338,7 +339,7 @@ export default {
       isNotificationRoute(url.pathname) || isRecruitmentRoute(url.pathname) ||
       url.pathname === "/me/recruitments" ||
       isPublicUserSearch(request.method,url.pathname) ||
-      isMessageRoute(url.pathname))) {
+      isMessageRoute(url.pathname) || isSavedRoute(url.pathname))) {
       return reply({ error: "not_found" }, 404, headers);
     }
 
@@ -537,6 +538,10 @@ export default {
       `;
 
       const userId = users[0].id as string;
+
+      if (isSavedRoute(url.pathname)) {
+        return await handleSaved(request, sql, userId, headers);
+      }
 
       if (isMessageRoute(url.pathname)) {
         return await handleMessages(request, sql, userId, headers);
