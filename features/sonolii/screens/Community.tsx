@@ -45,7 +45,7 @@ export default function Community({ navigate }: CommunityProps) {
         }
       })
       .catch(e => {
-        if (active) setError(e instanceof Error ? e.message : '投稿を取得できませんでした。');
+        if (active) setError('投稿を読み込めませんでした。再度お試しください。');
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -57,7 +57,7 @@ export default function Community({ navigate }: CommunityProps) {
     const reloadRecruitments = () => { void listRecruitments(getToken).then(data => {
       if (active) { setRecruitments(data.recruitments); setRecruitCursor(data.nextCursor); }
     }).catch(e => {
-      if (active) setRecruitError(e instanceof Error ? e.message : '募集を取得できませんでした。');
+      if (active) setRecruitError('募集を読み込めませんでした。再度お試しください。');
     }); };
     reloadRecruitments();
     const onFocus = () => { if (document.visibilityState === 'visible') reloadRecruitments(); };
@@ -73,7 +73,7 @@ export default function Community({ navigate }: CommunityProps) {
       const data = await listRecruitments(getToken, { cursor: recruitCursor });
       setRecruitments(old => [...old, ...data.recruitments.filter(item => !old.some(x => x.id === item.id))]);
       setRecruitCursor(data.nextCursor);
-    } catch (e) { setRecruitError(e instanceof Error ? e.message : '追加の募集を取得できませんでした。'); }
+    } catch (e) { setRecruitError('追加の募集を読み込めませんでした。再度お試しください。'); }
     finally { setRecruitMoreBusy(false); }
   }
 
@@ -88,7 +88,7 @@ export default function Community({ navigate }: CommunityProps) {
       )]);
       setCursor(data.nextCursor);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '追加の投稿を読み込めませんでした。');
+      setError('追加の投稿を読み込めませんでした。再度お試しください。');
     } finally {
       setMoreBusy(false);
     }
