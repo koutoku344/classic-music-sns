@@ -283,7 +283,7 @@ export default function Search({ navigate }: SearchProps) {
 
           <div className="bg-white rounded-2xl border border-ink-100 p-4 mb-5">
             <PiecePicker pieces={catalog} defaultLibraryMode="catalog" selectedPiece={selectedPiece}
-              onSelect={setSelectedPiece} label="曲で絞り込む（任意）" allowFreeInput={false} recentPieces={[]} />
+              onSelect={setSelectedPiece} label="曲で絞り込む" allowFreeInput={false} recentPieces={[]} />
           </div>
           {recruitError && <p role="alert" className="text-sm text-red-600">{recruitError}</p>}
           {recruitBusy && <p className="text-sm text-ink-500">募集中の案件を検索しています...</p>}
