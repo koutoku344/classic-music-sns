@@ -50,7 +50,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MyPage({ navigate }: MyPageProps) {
-  const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice' | 'saved'>('all');
+  const [filter, setFilter] = useState<'all' | 'posts' | 'practice' | 'saved'>('all');
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profile, setProfile] = useState<{
     user_id: string;
@@ -68,6 +68,7 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [practiceError, setPracticeError] = useState('');
   const [mediaUsage, setMediaUsage] = useState<MediaUsage | null>(null);
   const [mediaUsageError, setMediaUsageError] = useState('');
+  const [postKind,setPostKind]=useState<'all'|'performances'|'recruitments'>('all');
   const [savedItems,setSavedItems]=useState<SavedItem[]>([]);
   const [savedLoading,setSavedLoading]=useState(false);
   const [savedError,setSavedError]=useState('');
@@ -264,8 +265,8 @@ export default function MyPage({ navigate }: MyPageProps) {
     return()=>{active=false;};
   },[isSignedIn,getToken,filter]);
 
-  const showPosts = filter === 'all' || filter === 'posts';
-  const showRecruitments = filter === 'all' || filter === 'recruitments';
+  const showPosts = filter === 'all' || (filter === 'posts' && postKind !== 'recruitments');
+  const showRecruitments = filter === 'all' || (filter === 'posts' && postKind !== 'performances');
   const showPractice = filter === 'all' || filter === 'practice';
 
   return (
@@ -273,7 +274,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       <div className="flex justify-end mb-3">
         <button type="button" onClick={() => navigate('accountSettings')}
           className="inline-flex items-center gap-2 text-sm text-ink-600 bg-white border border-ink-200 rounded-lg px-3 py-2">
-          <Settings size={17}/> アカウント設定
+          アカウント設定 <ChevronRight size={16}/>
         </button>
       </div>
       <div className="bg-white rounded-2xl border border-ink-100 p-6 mb-5 animate-slide-up">
@@ -374,7 +375,6 @@ export default function MyPage({ navigate }: MyPageProps) {
           { key: 'all', label: '全て' },
           { key: 'posts', label: '投稿' },
           { key: 'practice', label: '練習' },
-          { key: 'recruitments', label: '募集' },
           { key: 'saved', label: '保存済み' },
         ] as const).map((t) => (
           <button
@@ -389,6 +389,11 @@ export default function MyPage({ navigate }: MyPageProps) {
         ))}
       </div>
 
+      {filter==='posts'&&<div className="flex items-center gap-2 mb-4" aria-label="投稿の種類">
+        {([{id:'all',label:'全て'},{id:'performances',label:'演奏'},{id:'recruitments',label:'募集'}] as const).map(item=>
+          <button type="button" key={item.id} aria-pressed={postKind===item.id}
+            onClick={()=>setPostKind(item.id)} className={`px-4 py-2 rounded-full text-sm ${postKind===item.id?'bg-ink-900 text-white':'bg-white border border-ink-200 text-ink-600'}`}>{item.label}</button>)}
+      </div>}
       {filter==='saved'&&<div className="space-y-2 mb-5">
         {savedLoading&&<p className="text-sm text-ink-500">保存した項目を読み込み中...</p>}
         {savedError&&<p role="alert" className="text-sm text-ink-600">{savedError}</p>}
