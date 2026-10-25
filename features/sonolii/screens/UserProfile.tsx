@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { listUserPosts, type PostRow } from '../lib/postApi';
-import PostSummary from '../components/PostSummary';
-import RecruitmentCard from '../components/RecruitmentCard';
+import ProfileTile from '../components/ProfileTile';
+
 import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { UserRound } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/messageApi';
@@ -242,16 +242,17 @@ export default function UserProfile({
             {postsLoading&&<p className="text-sm text-ink-500">投稿を読み込み中...</p>}
             {postsError&&<p className="text-sm text-ink-600">投稿を読み込めませんでした。</p>}
             {!postsLoading&&!postsError&&posts.length===0&&<p className="text-sm text-ink-500">表示できる投稿はありません。</p>}
-            {posts.map(post=><PostSummary key={post.id} post={post} getToken={getToken}
-              onOpen={()=>navigate('postDetail',{id:post.id})}
-              onOpenTimestamp={seconds=>navigate('postDetail',{id:post.id,commentAt:String(seconds)})}/>)}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {posts.map(post=><ProfileTile key={post.id} kind="performance" title={post.piece_title||post.body||'演奏投稿'} subtitle={post.composer_name||undefined} onClick={()=>navigate('postDetail',{id:post.id})}/>)}
+            </div>}
             {postsCursor&&<button type="button" onClick={()=>void loadMore()} disabled={moreBusy}
               className="w-full border border-ink-200 rounded-lg text-teal-700 py-3 text-sm">さらに投稿を表示</button>}
           </div>
         </>}
         {(profileTab==='all'||contentKind!=='performances')&&<div className="space-y-3 mt-3">
-          {recruitments.map(r=><RecruitmentCard key={r.id} recruitment={r}
-            onClick={()=>navigate('recruitmentDetail',{id:r.id})}/>)}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {recruitments.map(r=><ProfileTile key={r.id} kind="recruitment" title={r.piece_title||r.description||'募集'} subtitle={r.status==='open'?'募集中':'募集終了'} onClick={()=>navigate('recruitmentDetail',{id:r.id})}/>)}
+          </div>
         </div>}
       </>}
     </div>
