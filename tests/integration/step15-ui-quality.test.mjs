@@ -59,3 +59,12 @@ test('STEP15 practice monthly charts and repertoire counters',()=>{
  assert.match(mypage,/練習中 \{myRepertoire.filter/);
  assert.doesNotMatch(mypage,/取得済み投稿数/);
 });
+
+test('STEP15 post images support previous, next and touch swipe',()=>{
+ const src=read('features/sonolii/components/PostMediaView.tsx');
+ assert.match(src,/aria-label="前の画像"/);
+ assert.match(src,/aria-label="次の画像"/);
+ assert.match(src,/onTouchStart/);
+ assert.match(src,/onTouchEnd/);
+ assert.doesNotMatch(src,/shownImages\.map/);
+});
