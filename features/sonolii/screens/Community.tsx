@@ -98,12 +98,9 @@ export default function Community({ navigate }: CommunityProps) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6">
-      <div className="sticky top-16 z-30 bg-ink-50/90 backdrop-blur-md pt-4 pb-3 -mx-4 sm:-mx-6 px-4 sm:px-6 border-b border-ink-100">
+      <div className="bg-ink-50 pt-3 pb-2">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="font-serif text-2xl font-bold text-ink-900">コミュニティ</h1>
-            <p className="text-xs text-ink-400 mt-0.5">投稿 {posts.length}件（取得済み） · 募集 {recruitments.length}件（取得済み）</p>
-          </div>
+          <span className="sr-only">コミュニティ</span>
           <div className="relative">
             <button onClick={() => setShowCreateMenu(v => !v)}
               className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-medium">
@@ -193,7 +190,7 @@ export default function Community({ navigate }: CommunityProps) {
         {showRecruitments && (
           <>
             {recruitError && <p role="alert" className="text-sm text-red-600">{recruitError}</p>}
-            {recruitments.map(item => (
+            {recruitments.filter(item => item.status === "open").map(item => (
               <RecruitmentCard
                 key={item.id}
                 recruitment={item}
