@@ -85,3 +85,12 @@ test('STEP15 community shows feedback totals and share actions',()=>{
  assert.match(community,/post.comment_count/);
  assert.match(community,/ShareButton/);
 });
+
+test('STEP15 help and pricing do not advertise nonexistent paid features',()=>{
+ const help=read('features/sonolii/screens/Help.tsx');
+ const pay=read('features/sonolii/screens/Subscription.tsx');
+ assert.match(help,/最大200MB/);
+ assert.doesNotMatch(help,/月3件まで/);
+ assert.match(pay,/有料プランは準備中/);
+ assert.doesNotMatch(pay,/¥980|¥1,980|録音の品質分析/);
+});
