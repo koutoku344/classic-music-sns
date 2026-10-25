@@ -31,7 +31,7 @@ export default function Settings({ navigate }: SettingsProps) {
         <ArrowLeft size={18} /> マイページ
       </button>
 
-      <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">設定</h1>
+      <h1 className="sr-only">設定</h1>
 
       <div className="space-y-6">
         {sections.map((section) => (
