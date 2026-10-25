@@ -195,7 +195,7 @@ export default function CreatePractice({ navigate, editId }: Props) {
               disabled={saving || loading || audioBusy} aria-expanded={audioPanel}
               className="w-full flex items-center justify-between rounded-xl border border-ink-200 p-3 text-sm text-teal-700 disabled:opacity-50">
               <span className="flex items-center gap-2">
-                <Mic size={19}/> 音声を添付（任意）{audioMediaId ? ' ✓ 選択済み' : ''}
+                <Mic size={19}/> 音声を添付{audioMediaId ? ' ✓ 選択済み' : ''}
               </span>
               <ChevronRight size={18} className={audioPanel ? 'rotate-90' : ''}/>
             </button>
