@@ -5,6 +5,7 @@ import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostMediaView from '../components/PostMediaView';
 import ShareButton from '../components/ShareButton';
+import SaveButton from '../components/SaveButton';
 import RecruitmentCard from '../components/RecruitmentCard';
 import { Plus, Users, Music2, MessageCircle, Heart } from 'lucide-react';
 
@@ -171,6 +172,7 @@ export default function Community({ navigate }: CommunityProps) {
               <span className="inline-flex items-center gap-1"><Heart size={16}/>{post.like_count??0}</span>
               <span className="inline-flex items-center gap-1"><MessageCircle size={16}/>{post.comment_count??0}</span>
               <ShareButton path={"/posts/"+post.id} label="投稿"/>
+              <SaveButton kind="post" id={post.id} getToken={getToken}/>
             </div>
             {post.feedback_prefs?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -203,7 +205,7 @@ export default function Community({ navigate }: CommunityProps) {
                   onClick={() => navigate('recruitmentDetail', { id: item.id })}
                   onUserClick={() => navigate('userProfile', { id: item.user_id })}
                 />
-                <div className="flex justify-end"><ShareButton path={"/recruitments/"+item.id} label="募集"/></div>
+                <div className="flex justify-end items-center"><SaveButton kind="recruitment" id={item.id} getToken={getToken}/><ShareButton path={"/recruitments/"+item.id} label="募集"/></div>
               </div>
             ))}
             {recruitCursor && <button onClick={() => void loadMoreRecruitments()} disabled={recruitMoreBusy}
