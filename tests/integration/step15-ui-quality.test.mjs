@@ -51,7 +51,7 @@ test('STEP15 practice monthly charts and repertoire counters',()=>{
  const practice=read('features/sonolii/screens/Practice.tsx');
  const donut=read('features/sonolii/components/PracticeDonut.tsx');
  const mypage=read('features/sonolii/screens/MyPage.tsx');
- assert.match(practice,/monthBounds\(currentMonth.year,currentMonth.month\)/);
+ assert.match(practice,/monthBounds\(\s*currentMonth\.year\s*,\s*currentMonth\.month\s*\)/);
  assert.match(practice,/view === 'date'/);
  assert.match(practice,/<PracticeDonut items=\{chartItems\}/);
  assert.match(donut,/conic-gradient/);
