@@ -96,7 +96,7 @@ export default function MyPage({ navigate }: MyPageProps) {
         const data = (await res.json()) as ProfileResponse;
         if (active) setProfile(data.profile);
       } catch (error) {
-        if (active) setProfileError(String(error));
+        if (active) setProfileError('プロフィールを読み込めませんでした。再度お試しください。');
       }
     })();
 
@@ -135,7 +135,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       } catch (error) {
         if (active) {
           setMyRepertoire([]);
-          setRepertoireError(String(error));
+          setRepertoireError('レパートリーを読み込めませんでした。再度お試しください。');
         }
       } finally {
         if (active) setRepertoireLoading(false);
@@ -184,7 +184,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       .then(page => {
         if (active) { setMyPosts(page.posts); setPostsCursor(page.nextCursor); }
       })
-      .catch(e => { if (active) setPostsError(e instanceof Error ? e.message : '投稿を取得できませんでした。'); })
+      .catch(e => { if (active) setPostsError('投稿を読み込めませんでした。再度お試しください。'); })
       .finally(() => { if (active) setPostsLoading(false); });
     return () => { active = false; };
   }, [isLoaded, isSignedIn, profile?.user_id, getToken]);
@@ -199,7 +199,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       )]);
       setPostsCursor(page.nextCursor);
     } catch (e) {
-      setPostsError(e instanceof Error ? e.message : '追加取得に失敗しました。');
+      setPostsError('追加の投稿を読み込めませんでした。再度お試しください。');
     } finally {
       setPostsMoreBusy(false);
     }
@@ -217,7 +217,7 @@ export default function MyPage({ navigate }: MyPageProps) {
         const result=await listMyRecruitments(getToken);
         if(active){setMyRecruitments(result.recruitments);setRecruitmentsCursor(result.nextCursor);}
       }catch(e){
-        if(active)setRecruitmentsError(e instanceof Error?e.message:'募集を取得できませんでした。');
+        if(active)setRecruitmentsError('募集を読み込めませんでした。再度お試しください。');
       }finally{if(active)setRecruitmentsLoading(false);}
     })();
     return()=>{active=false;};
@@ -230,7 +230,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       const result=await listMyRecruitments(getToken,recruitmentsCursor);
       setMyRecruitments(old=>[...old,...result.recruitments.filter(r=>!old.some(x=>x.id===r.id))]);
       setRecruitmentsCursor(result.nextCursor);
-    }catch(e){setRecruitmentsError(e instanceof Error?e.message:'追加の募集を取得できませんでした。');}
+    }catch(e){setRecruitmentsError('追加の募集を読み込めませんでした。再度お試しください。');}
     finally{setRecruitmentsMoreBusy(false);}
   }
 
