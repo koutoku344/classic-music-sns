@@ -100,9 +100,18 @@ export default function Community({ navigate }: CommunityProps) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6">
-      <div className="bg-ink-50 pt-3 pb-2">
-        <div className="flex items-center justify-between mb-3">
-          <span className="sr-only">コミュニティ</span>
+      <div className="sticky top-16 z-30 bg-ink-50/95 backdrop-blur-md py-3 -mx-4 sm:-mx-6 px-4 sm:px-6 border-b border-ink-100">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+          {(['all', 'posts', 'recruitments'] as const).map(item => (
+            <button key={item} onClick={() => { setFilter(item); window.dispatchEvent(new Event('sonolii:recruitment-changed')); }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${filter === item
+                ? 'bg-ink-900 text-white'
+                : 'bg-white text-ink-600 border border-ink-200'}`}>
+              {item === 'all' ? '全て' : item === 'posts' ? '投稿' : '募集'}
+            </button>
+          ))}
+        </div>
           <div className="relative">
             <button onClick={() => setShowCreateMenu(v => !v)}
               className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-medium">
@@ -124,16 +133,6 @@ export default function Community({ navigate }: CommunityProps) {
               </>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {(['all', 'posts', 'recruitments'] as const).map(item => (
-            <button key={item} onClick={() => { setFilter(item); window.dispatchEvent(new Event('sonolii:recruitment-changed')); }}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${filter === item
-                ? 'bg-ink-900 text-white'
-                : 'bg-white text-ink-600 border border-ink-200'}`}>
-              {item === 'all' ? '全て' : item === 'posts' ? '投稿' : '募集'}
-            </button>
-          ))}
         </div>
       </div>
 
