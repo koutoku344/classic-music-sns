@@ -190,9 +190,9 @@ export default function Recording({ navigate }: RecordingProps) {
         <ArrowLeft size={18} /> 戻る
       </button>
 
-      <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">録音</h1>
+      <h1 className="sr-only">録音</h1>
 
-      <div className="bg-white rounded-2xl border border-ink-100 p-6 sm:p-8 animate-slide-up">
+      {!savedId && <div className="bg-white rounded-2xl border border-ink-100 p-6 sm:p-8 animate-slide-up">
         {error && <p role="alert" className="text-sm text-red-600 mb-5">{error}</p>}
         {phase === 'idle' && (
           <div className="text-center py-8">
@@ -251,7 +251,7 @@ export default function Recording({ navigate }: RecordingProps) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {savedId && (
         <div role="status" className="mt-5 bg-white rounded-2xl border border-ink-100 p-6 space-y-4">
@@ -264,13 +264,15 @@ export default function Recording({ navigate }: RecordingProps) {
             className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-teal-600 text-white text-sm font-medium">
             <Calendar size={18} /> 練習として記録する
           </button>
+          <button type="button"
+            onClick={() => navigate('createPost', { audioMediaId: savedId })}
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white border border-teal-300 text-teal-700 text-sm font-medium">
+            <Mic size={18} /> 演奏として投稿する
+          </button>
           <button type="button" onClick={() => navigate('practice')}
             className="w-full py-3 rounded-xl border border-ink-200 text-sm text-ink-700">
-            録音だけ保存して終了
+            保存して終了
           </button>
-          <p className="text-xs text-ink-400">
-            投稿への音声添付は投稿機能の実装時に対応します。
-          </p>
         </div>
       )}
     </div>
