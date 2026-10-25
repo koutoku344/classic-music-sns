@@ -94,3 +94,18 @@ test('STEP15 help and pricing do not advertise nonexistent paid features',()=>{
  assert.match(pay,/有料プランは準備中/);
  assert.doesNotMatch(pay,/¥980|¥1,980|録音の品質分析/);
 });
+
+test('STEP15 saved items are authenticated and post visibility is enforced',()=>{
+ const api=read('backend/src/saved.ts');
+ const index=read('backend/src/index.ts');
+ const sql=read('db/migrations/027_saved_items.sql');
+ const ui=read('features/sonolii/screens/MyPage.tsx');
+ assert.match(index,/isSavedRoute\(url.pathname\)/);
+ assert.match(index,/handleSaved\(request, sql, userId, headers\)/);
+ assert.match(api,/f.status='accepted'/);
+ assert.match(api,/WHERE s.user_id=\$\{userId\}::uuid/);
+ assert.match(api,/ON CONFLICT DO NOTHING/);
+ assert.match(sql,/PRIMARY KEY\(user_id,item_type,item_id\)/);
+ assert.match(ui,/保存済み/);
+ assert.match(ui,/listSaved\(getToken\)/);
+});
