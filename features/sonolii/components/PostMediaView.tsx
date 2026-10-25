@@ -51,7 +51,7 @@ function MediaItem({
     void postMediaReadUrl(postId, item.id, getToken)
       .then(value => { if (active) setUrl(value); })
       .catch(e => {
-        if (active) setError(e instanceof Error ? e.message : 'メディアを読み込めません。');
+        if (active) setError('メディアを読み込めません。再取得してください。');
       });
     return () => { active = false; };
   }, [postId, item.id, getToken, retry]);
