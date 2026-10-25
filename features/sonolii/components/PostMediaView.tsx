@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { postMediaReadUrl, type PostMedia } from '../lib/postApi';
 import type { TokenGetter } from '../lib/mediaApi';
 
@@ -133,19 +133,38 @@ export default function PostMediaView({
   const audio = media.find(m => m.media_type === 'audio');
   const images = media.filter(m => m.media_type === 'image')
     .sort((a, b) => a.display_order - b.display_order);
-  const shownImages = compact ? images.slice(0, 1) : images;
+  const [activeImage,setActiveImage]=useState(0);
+  const imageIndex=Math.min(activeImage,Math.max(0,images.length-1));
+  const touchStart=useRef<number|null>(null);
+  function move(delta:number){
+    setActiveImage(index=>Math.max(0,Math.min(images.length-1,index+delta)));
+  }
   return (
     <div className="space-y-3">
-      {shownImages.map(image => (
-        <div key={image.id} className="relative">
-          <MediaItem postId={postId} item={image} getToken={getToken} compact={compact} />
-          {compact && images.length > 1 && (
-            <span className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-              画像 {images.length}枚
-            </span>
-          )}
-        </div>
-      ))}
+      {images.length>0&&<div className="relative" onTouchStart={e=>{touchStart.current=e.touches[0]?.clientX??null;}}
+        onTouchEnd={e=>{
+          if(touchStart.current===null)return;
+          const diff=e.changedTouches[0].clientX-touchStart.current;
+          if(Math.abs(diff)>45)move(diff<0?1:-1);
+          touchStart.current=null;
+        }}>
+        <MediaItem key={images[imageIndex].id} postId={postId} item={images[imageIndex]} getToken={getToken} compact={compact}/>
+        {images.length>1&&<>
+          <button type="button" aria-label="前の画像" disabled={imageIndex===0}
+            onClick={e=>{e.stopPropagation();move(-1);}}
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow disabled:opacity-30">
+            <ChevronLeft size={20}/>
+          </button>
+          <button type="button" aria-label="次の画像" disabled={imageIndex===images.length-1}
+            onClick={e=>{e.stopPropagation();move(1);}}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow disabled:opacity-30">
+            <ChevronRight size={20}/>
+          </button>
+          <span className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+            {imageIndex+1} / {images.length}
+          </span>
+        </>}
+      </div>}
       {audio && <MediaItem postId={postId} item={audio} getToken={getToken} compact={compact}
         onAudioTimeChange={onAudioTimeChange} seekToSeconds={seekToSeconds} seekVersion={seekVersion}
         onTimestampComment={onTimestampComment} />}
