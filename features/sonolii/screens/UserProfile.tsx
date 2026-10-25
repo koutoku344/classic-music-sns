@@ -5,6 +5,8 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
+import RecruitmentCard from '../components/RecruitmentCard';
+import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { UserRound } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/messageApi';
 
@@ -40,6 +42,9 @@ export default function UserProfile({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [posts, setPosts] = useState<PostRow[]>([]);
+  const [profileTab,setProfileTab]=useState<'all'|'posts'>('all');
+  const [contentKind,setContentKind]=useState<'all'|'performances'|'recruitments'>('all');
+  const [recruitments,setRecruitments]=useState<RecruitmentRow[]>([]);
   const [postsCursor, setPostsCursor] = useState<string | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState('');
@@ -96,6 +101,15 @@ export default function UserProfile({
       .finally(() => { if (active) setPostsLoading(false); });
     return () => { active = false; };
   }, [isLoaded, profile?.user_id, profile?.restricted, getToken]);
+
+  useEffect(()=>{
+    if(!isLoaded||!profile?.user_id||profile.restricted){setRecruitments([]);return;}
+    let active=true;
+    void listRecruitments(getToken).then(result=>{
+      if(active)setRecruitments(result.recruitments.filter(r=>r.user_id===profile.user_id));
+    }).catch(()=>{if(active)setRecruitments([]);});
+    return()=>{active=false;};
+  },[isLoaded,profile?.user_id,profile?.restricted,getToken]);
 
   const [followStatus, setFollowStatus] = useState<'self' | 'pending' | 'accepted' | null>(null);
   const [followLoading, setFollowLoading] = useState(false);
@@ -212,27 +226,34 @@ export default function UserProfile({
 
         </div>
       )}
-      {!loading && !error && profile && !profile.restricted && (
-        <section className="mt-5 space-y-3">
-          <h2 className="font-serif text-lg font-semibold text-ink-900">投稿</h2>
-          {postsLoading && <p className="text-sm text-ink-500">投稿を読み込み中...</p>}
-          {postsError && <p role="alert" className="text-sm text-red-600">{postsError}</p>}
-          {!postsLoading && posts.length === 0 && !postsError && (
-            <p className="text-sm text-ink-500">表示できる投稿はありません。</p>
-          )}
-          {posts.map(post => (
-            <PostSummary key={post.id} post={post} getToken={getToken}
-              onOpen={() => navigate('postDetail', { id: post.id })}
-              onOpenTimestamp={seconds => navigate('postDetail', { id: post.id, commentAt: String(seconds) })}/>
-          ))}
-          {postsCursor && (
-            <button type="button" onClick={() => void loadMore()} disabled={moreBusy}
-              className="w-full border border-ink-200 rounded-lg text-teal-700 py-3 text-sm disabled:opacity-50">
-              {moreBusy ? '読み込み中...' : 'さらに投稿を表示'}
-            </button>
-          )}
-        </section>
-      )}
+      {!loading&&!error&&profile&&!profile.restricted&&<>
+        <div className="flex gap-1 mt-5 mb-4 bg-white rounded-xl border border-ink-100 p-1">
+          {([{id:'all',label:'全て'},{id:'posts',label:'投稿'}] as const).map(item=>
+            <button key={item.id} onClick={()=>setProfileTab(item.id)}
+              className={`flex-1 py-2 rounded-lg text-sm ${profileTab===item.id?'bg-teal-600 text-white':'text-ink-600'}`}>{item.label}</button>)}
+        </div>
+        {profileTab==='posts'&&<div className="flex gap-2 mb-4">
+          {([{id:'all',label:'全て'},{id:'performances',label:'演奏'},{id:'recruitments',label:'募集'}] as const).map(item=>
+            <button key={item.id} onClick={()=>setContentKind(item.id)}
+              className={`px-4 py-2 rounded-full text-sm ${contentKind===item.id?'bg-ink-900 text-white':'bg-white border border-ink-200'}`}>{item.label}</button>)}
+        </div>}
+        {(profileTab==='all'||contentKind!=='recruitments')&&<>
+          <div className="space-y-3">
+            {postsLoading&&<p className="text-sm text-ink-500">投稿を読み込み中...</p>}
+            {postsError&&<p className="text-sm text-ink-600">投稿を読み込めませんでした。</p>}
+            {!postsLoading&&!postsError&&posts.length===0&&<p className="text-sm text-ink-500">表示できる投稿はありません。</p>}
+            {posts.map(post=><PostSummary key={post.id} post={post} getToken={getToken}
+              onOpen={()=>navigate('postDetail',{id:post.id})}
+              onOpenTimestamp={seconds=>navigate('postDetail',{id:post.id,commentAt:String(seconds)})}/>)}
+            {postsCursor&&<button type="button" onClick={()=>void loadMore()} disabled={moreBusy}
+              className="w-full border border-ink-200 rounded-lg text-teal-700 py-3 text-sm">さらに投稿を表示</button>}
+          </div>
+        </>}
+        {(profileTab==='all'||contentKind!=='performances')&&<div className="space-y-3 mt-3">
+          {recruitments.map(r=><RecruitmentCard key={r.id} recruitment={r}
+            onClick={()=>navigate('recruitmentDetail',{id:r.id})}/>)}
+        </div>}
+      </>}
     </div>
   );
 }
