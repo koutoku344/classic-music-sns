@@ -34,3 +34,15 @@ test('STEP15 own recruitment route is authenticated and scoped to the owner',()=
  assert.match(api,/if\(!userId\)return resp\(\{error:"unauthorized"\},401,headers\)/);
  assert.match(api,/WHERE r.user_id=\$\{userId\}::uuid/);
 });
+
+test('STEP15 requested copy updates and community header cleanup',()=>{
+ const community=read('features/sonolii/screens/Community.tsx');
+ assert.doesNotMatch(community,/投稿 \{posts.length\}件（取得済み）/);
+ assert.match(community,/status === "open"/);
+ const post=read('features/sonolii/screens/CreatePost.tsx');
+ assert.match(post,/コメント受付/);
+ assert.doesNotMatch(post,/コメント受付（将来の交流機能用）/);
+ const recruiting=read('features/sonolii/screens/CreateRecruitment.tsx');
+ assert.match(recruiting,/label="演奏曲目"/);
+ assert.match(recruiting,/募集内容 <span aria-label="必須"/);
+});
