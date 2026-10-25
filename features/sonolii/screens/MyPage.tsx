@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName, Piece } from '../types';
 import { listMyRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listUserPosts, type PostRow } from '../lib/postApi';
-import PostSummary from '../components/PostSummary';
+import ProfileTile from '../components/ProfileTile';
 import { listSaved, type SavedItem } from '../lib/savedApi';
 import { getAllPractices } from '../lib/practiceApi';
 import { getMediaUsage, formatMediaBytes } from '../lib/mediaApi';
@@ -410,11 +410,9 @@ export default function MyPage({ navigate }: MyPageProps) {
           <p className="text-sm text-ink-500 col-span-2">まだ投稿がありません。</p>
         )}
         {showPosts && myPosts.map(post => (
-          <div key={post.id} className="col-span-2">
-            <PostSummary post={post} getToken={getToken}
-              onOpen={() => navigate('postDetail', { id: post.id, from: 'my-page' })}
-              onOpenTimestamp={seconds => navigate('postDetail', { id: post.id, from: 'my-page', commentAt: String(seconds) })} />
-          </div>
+          <ProfileTile key={post.id} kind="performance" title={post.piece_title || post.body || '演奏投稿'}
+            subtitle={post.composer_name || undefined}
+            onClick={() => navigate('postDetail', { id: post.id, from: 'my-page' })}/>
         ))}
         {showPosts && postsCursor && (
           <button type="button" onClick={() => void loadMorePosts()} disabled={postsMoreBusy}
@@ -427,13 +425,10 @@ export default function MyPage({ navigate }: MyPageProps) {
         {showRecruitments && recruitmentsError && <p role="alert" className="text-sm text-red-600 col-span-2">{recruitmentsError}</p>}
         {showRecruitments && !recruitmentsLoading && !recruitmentsError && myRecruitments.length===0 &&
           <p className="text-sm text-ink-500 col-span-2">自分が作成した募集はありません。</p>}
-        {showRecruitments && myRecruitments.map(r=><button key={r.id}
-          onClick={()=>navigate('recruitmentDetail',{id:r.id})}
-          className="col-span-2 bg-white rounded-xl border border-ink-100 p-4 text-left hover:border-teal-300">
-          <p className="text-sm font-semibold text-ink-800">{r.piece_title ?? '曲の指定なし'}</p>
-          <p className="text-xs text-ink-500 mt-1">{r.composer_name ?? ''} {r.instruments.join('・')} / {r.regions.join('・')}</p>
-          <p className="text-xs text-ink-500 mt-2">{r.status==='open'?'募集中':'終了'} · 承認済み応募 {r.applicants}件</p>
-        </button>)}
+        {showRecruitments && myRecruitments.map(r=>
+          <ProfileTile key={r.id} kind="recruitment" title={r.piece_title || r.description || 'アンサンブル募集'}
+            subtitle={r.status==='open'?'募集中':'募集終了'}
+            onClick={()=>navigate('recruitmentDetail',{id:r.id})}/>)}
         {showRecruitments && recruitmentsCursor && <button type="button" className="col-span-2 border border-ink-200 rounded-lg p-3 text-sm text-teal-700" disabled={recruitmentsMoreBusy} onClick={()=>void loadMoreRecruitments()}>{recruitmentsMoreBusy?"読み込み中...":"さらに募集を表示"}</button>}
       </div>
 
