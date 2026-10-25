@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { getAllPractices, todayLocal } from '../lib/practiceApi';
 import type { PracticeRow } from '../lib/practiceApi';
+import PracticeDonut, { type DonutItem } from '../components/PracticeDonut';
 import { Calendar, ChevronLeft, ChevronRight, Clock, Music2, Plus } from 'lucide-react';
 
 type Props = { navigate: (s: ScreenName, params?: Record<string, string>) => void };
@@ -79,6 +80,23 @@ export default function Practice({ navigate }: Props) {
         record.practice_date <= periodRange[1],
     )
     .reduce((sum, record) => sum + record.duration_minutes, 0);
+  const currentMonth = history ? month : { year: today.getFullYear(), month: today.getMonth() + 1 };
+  const monthRange = monthBounds(currentMonth.year, currentMonth.month);
+  const monthRecords = records.filter(r => r.practice_date >= monthRange[0] && r.practice_date <= monthRange[1]);
+  const dailyMinutes = new Map<string, number>();
+  const pieceMinutes = new Map<string, DonutItem>();
+  for (const record of monthRecords) {
+    dailyMinutes.set(record.practice_date, (dailyMinutes.get(record.practice_date) ?? 0) + record.duration_minutes);
+    const pieceKey = record.user_piece_id ?? record.piece_id ?? record.piece_title;
+    const old = pieceMinutes.get(pieceKey);
+    pieceMinutes.set(pieceKey, {
+      label: `${record.composer_name} / ${record.piece_title}`,
+      minutes: (old?.minutes ?? 0) + record.duration_minutes,
+    });
+  }
+  const chartItems: DonutItem[] = view === 'date'
+    ? [...dailyMinutes].sort(([a], [b]) => a.localeCompare(b)).map(([label, minutes]) => ({ label, minutes }))
+    : [...pieceMinutes.values()].sort((a, b) => b.minutes - a.minutes);
   const dayGroups = useMemo(() => {
     const map = new Map<string, PracticeRow[]>();
     records.forEach((record) => {
@@ -108,7 +126,7 @@ export default function Practice({ navigate }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-        <h1 className="font-serif text-2xl font-bold text-ink-900">{history ? '過去の練習' : '練習管理'}</h1>
+        <h1 className="sr-only">{history ? '過去の練習' : '練習管理'}</h1>
         <div className="flex gap-2">
           <button onClick={() => setHistory(!history)}
             className="px-3 py-2 border border-ink-200 rounded-xl bg-white text-sm">
@@ -141,7 +159,7 @@ export default function Practice({ navigate }: Props) {
           </div>
           <p className="text-3xl font-semibold text-teal-700">{actualMinutes} <span
             className="text-base font-normal">分</span></p>
-          <p className="text-xs text-ink-500 mt-1">記録した練習時間の合計（目標設定は後続STEP）</p>
+
         </div>
       )}
       <div className="flex gap-2 mb-4">
@@ -151,6 +169,7 @@ export default function Practice({ navigate }: Props) {
           className={`px-4 py-2 rounded-lg text-sm ${view === 'piece' ? 'bg-teal-600 text-white' : 'bg-white border border-ink-200'}`}>曲別</button>
       </div>
       {loading && <p className="text-sm text-ink-600">練習記録を読み込み中...</p>}
+      {!loading && !error && isSignedIn && <PracticeDonut items={chartItems} />}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {!isSignedIn && isLoaded && <p>練習記録を見るにはログインしてください。</p>}
       {!loading && !error && isSignedIn && records.length === 0 && <p className="bg-white p-5 rounded-xl text-ink-500">練習記録はまだありません。</p>}
