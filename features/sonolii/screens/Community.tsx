@@ -5,7 +5,7 @@ import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostMediaView from '../components/PostMediaView';
 import RecruitmentCard from '../components/RecruitmentCard';
-import { Plus, Users, Music2, MessageCircle } from 'lucide-react';
+import { Plus, Users, Music2, MessageCircle, Heart } from 'lucide-react';
 
 interface CommunityProps {
   navigate: (screen: ScreenName, params?: Record<string, string>) => void;
@@ -165,6 +165,10 @@ export default function Community({ navigate }: CommunityProps) {
                 onTimestampComment={post.comments_enabled
                   ? seconds => navigate('postDetail', { id: post.id, commentAt: String(seconds) })
                   : undefined} />
+            </div>
+            <div className="flex items-center gap-5 text-sm text-ink-500" aria-label="投稿の反応">
+              <span className="inline-flex items-center gap-1"><Heart size={16}/>{post.like_count??0}</span>
+              <span className="inline-flex items-center gap-1"><MessageCircle size={16}/>{post.comment_count??0}</span>
             </div>
             {post.feedback_prefs?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
