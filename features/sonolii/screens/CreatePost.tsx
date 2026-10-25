@@ -234,7 +234,7 @@ export default function CreatePost({ navigate, editId }: Props) {
               />
               <div className="flex items-center justify-between gap-3 border border-ink-200 rounded-xl p-3">
                 <div className="min-w-0">
-                  <p className="text-xs text-ink-500">演奏した曲（任意）</p>
+                  <p className="text-xs text-ink-500">演奏した曲</p>
                   <p className="text-sm text-ink-800 truncate">
                     {piece ? `${piece.composer} / ${piece.title}` : '未選択'}
                   </p>
@@ -260,7 +260,7 @@ export default function CreatePost({ navigate, editId }: Props) {
                   setPanel('audio');
                 }}
                 ownedPieces={ownedPieces} recentPieces={[]}
-                label="演奏した曲（任意）"
+                label="演奏した曲"
               />
               {piece && (
                 <button type="button" onClick={() => { setPiece(null); setPanel('audio'); }}
