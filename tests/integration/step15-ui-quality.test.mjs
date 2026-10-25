@@ -125,3 +125,18 @@ test('STEP15 second UI review: compact sticky controls, labels and profile tabs'
   assert.doesNotMatch(read('features/sonolii/screens/'+path),/（任意）/);
  }
 });
+
+test('STEP15 profile settings link belongs to profile card and content uses square tiles',()=>{
+ const mine=read('features/sonolii/screens/MyPage.tsx');
+ const visitor=read('features/sonolii/screens/UserProfile.tsx');
+ const tile=read('features/sonolii/components/ProfileTile.tsx');
+ const card=mine.indexOf('bg-white rounded-2xl border border-ink-100 p-6 mb-5');
+ const settings=mine.indexOf('アカウント設定 <ChevronRight');
+ assert.ok(card>=0 && settings>card && settings<mine.indexOf('Storage usage from authenticated Backend API'));
+ assert.match(mine,/ProfileTile key=\{post.id\}/);
+ assert.match(mine,/ProfileTile key=\{r.id\}/);
+ assert.match(mine,/ProfileTile key=\{record.id\}/);
+ assert.match(visitor,/ProfileTile key=\{post.id\}/);
+ assert.match(visitor,/ProfileTile key=\{r.id\}/);
+ assert.match(tile,/aspect-square/);
+});
