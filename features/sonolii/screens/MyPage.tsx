@@ -11,10 +11,8 @@ import type { PracticeRow } from '../lib/practiceApi';
 import { API_BASE, toPiece } from '../lib/repertoireApi';
 import type { RepertoireResponse } from '../lib/repertoireApi';
 import {
-  Heart,
   MessageCircle,
   BookOpen,
-  Music2,
   ChevronRight,
   Calendar,
   Clock,
@@ -319,7 +317,7 @@ export default function MyPage({ navigate }: MyPageProps) {
       <div className="bg-white rounded-2xl border border-ink-100 p-5 mb-5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-serif text-base font-semibold text-ink-900 flex items-center gap-2">
-            <BookOpen size={18} className="text-teal-600" /> レパートリー
+            <BookOpen size={18} className="text-teal-600" /> レパートリー <span className="text-xs font-normal text-ink-500 ml-1">レパートリー {myRepertoire.filter(p => p.status === "repertoire").length}件 / 練習中 {myRepertoire.filter(p => p.status === "practicing").length}件</span>
           </h2>
           <button
             onClick={() => navigate('repertoire')}
@@ -348,11 +346,6 @@ export default function MyPage({ navigate }: MyPageProps) {
             </span>
           ))}
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <StatBox icon={Music2} value={myPosts.length} label="取得済み投稿数" color="text-teal-600" />
-        <StatBox icon={BookOpen} value={myRepertoire.length} label="レパートリー" color="text-sage-600" />
       </div>
 
       <div className="flex gap-1 mb-5 bg-white rounded-xl border border-ink-100 p-1">
@@ -438,26 +431,6 @@ export default function MyPage({ navigate }: MyPageProps) {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function StatBox({
-  icon: Icon,
-  value,
-  label,
-  color,
-}: {
-  icon: typeof Heart;
-  value: number;
-  label: string;
-  color: string;
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-ink-100 p-4 text-center">
-      <Icon size={20} className={`mx-auto mb-1.5 ${color}`} />
-      <p className="text-xl font-bold text-ink-900">{value}</p>
-      <p className="text-xs text-ink-400">{label}</p>
     </div>
   );
 }
