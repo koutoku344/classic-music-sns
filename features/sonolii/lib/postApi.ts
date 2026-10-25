@@ -43,6 +43,8 @@ export type PostRow = {
   created_at: string;
   updated_at: string;
   display_name: string;
+  like_count?: number;
+  comment_count?: number;
   composer_name: string | null;
   piece_title: string | null;
   media: PostMedia[];
