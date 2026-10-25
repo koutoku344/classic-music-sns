@@ -266,7 +266,7 @@ export default function Recording({ navigate }: RecordingProps) {
           </button>
           <button type="button"
             onClick={() => navigate('createPost', { audioMediaId: savedId })}
-            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white border border-teal-300 text-teal-700 text-sm font-medium">
+            className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-teal-600 text-white text-sm font-medium">
             <Mic size={18} /> 演奏として投稿する
           </button>
           <button type="button" onClick={() => navigate('practice')}
