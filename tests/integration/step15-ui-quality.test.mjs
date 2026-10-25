@@ -68,3 +68,20 @@ test('STEP15 post images support previous, next and touch swipe',()=>{
  assert.match(src,/onTouchEnd/);
  assert.doesNotMatch(src,/shownImages\.map/);
 });
+
+test('STEP15 saved recording has no blank panel and offers posting',()=>{
+ const src=read('features/sonolii/screens/Recording.tsx');
+ assert.match(src,/!savedId && <div/);
+ assert.match(src,/navigate\('createPost', \{ audioMediaId: savedId \}\)/);
+ assert.match(src,/保存して終了/);
+ assert.doesNotMatch(src,/録音だけ保存して終了/);
+});
+test('STEP15 community shows feedback totals and share actions',()=>{
+ const api=read('backend/src/posts.ts');
+ const community=read('features/sonolii/screens/Community.tsx');
+ assert.match(api,/AS like_count/);
+ assert.match(api,/AS comment_count/);
+ assert.match(community,/post.like_count/);
+ assert.match(community,/post.comment_count/);
+ assert.match(community,/ShareButton/);
+});
