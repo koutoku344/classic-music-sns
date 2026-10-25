@@ -4,6 +4,7 @@ import type { ScreenName, Piece } from '../types';
 import { listMyRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
+import { listSaved, type SavedItem } from '../lib/savedApi';
 import { getAllPractices } from '../lib/practiceApi';
 import { getMediaUsage, formatMediaBytes } from '../lib/mediaApi';
 import type { MediaUsage } from '../lib/mediaApi';
@@ -49,7 +50,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MyPage({ navigate }: MyPageProps) {
-  const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice'>('all');
+  const [filter, setFilter] = useState<'all' | 'posts' | 'recruitments' | 'practice' | 'saved'>('all');
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profile, setProfile] = useState<{
     user_id: string;
@@ -67,6 +68,9 @@ export default function MyPage({ navigate }: MyPageProps) {
   const [practiceError, setPracticeError] = useState('');
   const [mediaUsage, setMediaUsage] = useState<MediaUsage | null>(null);
   const [mediaUsageError, setMediaUsageError] = useState('');
+  const [savedItems,setSavedItems]=useState<SavedItem[]>([]);
+  const [savedLoading,setSavedLoading]=useState(false);
+  const [savedError,setSavedError]=useState('');
   const [myRecruitments,setMyRecruitments]=useState<RecruitmentRow[]>([]);
   const [recruitmentsLoading,setRecruitmentsLoading]=useState(false);
   const [recruitmentsError,setRecruitmentsError]=useState('');
@@ -250,6 +254,16 @@ export default function MyPage({ navigate }: MyPageProps) {
     })();
     return () => { active = false; };
   }, [isLoaded, isSignedIn, getToken]);
+  useEffect(()=>{
+    if(!isSignedIn||filter!=='saved'){setSavedItems([]);return;}
+    let active=true;
+    setSavedLoading(true);setSavedError('');
+    void listSaved(getToken).then(items=>{if(active)setSavedItems(items);})
+      .catch(()=>{if(active)setSavedError('保存済みの一覧を読み込めませんでした。');})
+      .finally(()=>{if(active)setSavedLoading(false);});
+    return()=>{active=false;};
+  },[isSignedIn,getToken,filter]);
+
   const showPosts = filter === 'all' || filter === 'posts';
   const showRecruitments = filter === 'all' || filter === 'recruitments';
   const showPractice = filter === 'all' || filter === 'practice';
@@ -361,6 +375,7 @@ export default function MyPage({ navigate }: MyPageProps) {
           { key: 'posts', label: '投稿' },
           { key: 'practice', label: '練習' },
           { key: 'recruitments', label: '募集' },
+          { key: 'saved', label: '保存済み' },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -374,6 +389,17 @@ export default function MyPage({ navigate }: MyPageProps) {
         ))}
       </div>
 
+      {filter==='saved'&&<div className="space-y-2 mb-5">
+        {savedLoading&&<p className="text-sm text-ink-500">保存した項目を読み込み中...</p>}
+        {savedError&&<p role="alert" className="text-sm text-ink-600">{savedError}</p>}
+        {!savedLoading&&!savedError&&savedItems.length===0&&<p className="text-sm text-ink-500">保存した投稿や募集はまだありません。</p>}
+        {savedItems.map(item=><button type="button" key={item.item_type+item.item_id}
+          onClick={()=>navigate(item.item_type==='post'?'postDetail':'recruitmentDetail',{id:item.item_id})}
+          className="w-full text-left p-4 rounded-xl bg-white border border-ink-100 hover:border-teal-300">
+          <span className="text-xs text-ink-500">{item.item_type==='post'?'投稿':'募集'}</span>
+          <p className="text-sm text-ink-800 mt-1">{item.title||'詳細を見る'}</p>
+        </button>)}
+      </div>}
       <div className="grid grid-cols-2 gap-3">
         {showPosts && postsLoading && <p className="text-sm text-ink-500 col-span-2">投稿を読み込み中...</p>}
         {showPosts && postsError && <p role="alert" className="text-sm text-red-600 col-span-2">{postsError}</p>}
