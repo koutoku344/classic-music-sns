@@ -4,6 +4,7 @@ import type { ScreenName } from '../types';
 import { listRecruitments, type RecruitmentRow } from '../lib/recruitmentApi';
 import { listPosts, type PostRow } from '../lib/postApi';
 import PostMediaView from '../components/PostMediaView';
+import ShareButton from '../components/ShareButton';
 import RecruitmentCard from '../components/RecruitmentCard';
 import { Plus, Users, Music2, MessageCircle, Heart } from 'lucide-react';
 
@@ -169,6 +170,7 @@ export default function Community({ navigate }: CommunityProps) {
             <div className="flex items-center gap-5 text-sm text-ink-500" aria-label="投稿の反応">
               <span className="inline-flex items-center gap-1"><Heart size={16}/>{post.like_count??0}</span>
               <span className="inline-flex items-center gap-1"><MessageCircle size={16}/>{post.comment_count??0}</span>
+              <ShareButton path={"/posts/"+post.id} label="投稿"/>
             </div>
             {post.feedback_prefs?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -195,12 +197,14 @@ export default function Community({ navigate }: CommunityProps) {
           <>
             {recruitError && <p role="alert" className="text-sm text-red-600">{recruitError}</p>}
             {recruitments.filter(item => item.status === "open").map(item => (
-              <RecruitmentCard
-                key={item.id}
-                recruitment={item}
-                onClick={() => navigate('recruitmentDetail', { id: item.id })}
-                onUserClick={() => navigate('userProfile', { id: item.user_id })}
-              />
+              <div key={item.id} className="space-y-1">
+                <RecruitmentCard
+                  recruitment={item}
+                  onClick={() => navigate('recruitmentDetail', { id: item.id })}
+                  onUserClick={() => navigate('userProfile', { id: item.user_id })}
+                />
+                <div className="flex justify-end"><ShareButton path={"/recruitments/"+item.id} label="募集"/></div>
+              </div>
             ))}
             {recruitCursor && <button onClick={() => void loadMoreRecruitments()} disabled={recruitMoreBusy}
               className="w-full py-3 text-sm text-teal-700 border border-ink-200 rounded-xl disabled:opacity-50">
