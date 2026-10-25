@@ -109,3 +109,19 @@ test('STEP15 saved items are authenticated and post visibility is enforced',()=>
  assert.match(ui,/保存済み/);
  assert.match(ui,/listSaved\(getToken\)/);
 });
+
+test('STEP15 second UI review: compact sticky controls, labels and profile tabs',()=>{
+ const community=read('features/sonolii/screens/Community.tsx');
+ const mypage=read('features/sonolii/screens/MyPage.tsx');
+ const other=read('features/sonolii/screens/UserProfile.tsx');
+ const rec=read('features/sonolii/screens/Recording.tsx');
+ assert.match(community,/sticky top-16/);
+ assert.match(community,/justify-between gap-2/);
+ assert.match(mypage,/postKind/);
+ assert.doesNotMatch(mypage,/key: 'recruitments', label: '募集'/);
+ assert.match(other,/contentKind/);
+ assert.match(rec,/演奏として投稿する/);
+ for(const path of ['Search.tsx','CreatePost.tsx','CreatePractice.tsx']){
+  assert.doesNotMatch(read('features/sonolii/screens/'+path),/（任意）/);
+ }
+});
