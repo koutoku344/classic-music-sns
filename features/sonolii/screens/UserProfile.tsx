@@ -64,12 +64,12 @@ export default function UserProfile({
         if (response.status === 404) {
           throw new Error('プロフィールが見つかりません（未登録の可能性もあります）');
         }
-        if (!response.ok) throw new Error(`取得失敗 HTTP ${response.status}`);
+        if (!response.ok) throw new Error('プロフィールを読み込めませんでした。');
         const data = await response.json() as PublicProfileResponse;
         if (!controller.signal.aborted) setProfile(data.profile);
       } catch (e) {
         if (!controller.signal.aborted) {
-          setError(e instanceof Error ? e.message : 'プロフィールを取得できませんでした');
+          setError('プロフィールを読み込めませんでした。再度お試しください。');
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -92,7 +92,7 @@ export default function UserProfile({
       .then(page => {
         if (active) { setPosts(page.posts); setPostsCursor(page.nextCursor); }
       })
-      .catch(e => { if (active) setPostsError(e instanceof Error ? e.message : '投稿を取得できませんでした。'); })
+      .catch(e => { if (active) setPostsError('投稿を読み込めませんでした。再度お試しください。'); })
       .finally(() => { if (active) setPostsLoading(false); });
     return () => { active = false; };
   }, [isLoaded, profile?.user_id, profile?.restricted, getToken]);
@@ -117,7 +117,7 @@ export default function UserProfile({
         const data = await response.json() as { status: 'self' | 'pending' | 'accepted' | null };
         if (active) setFollowStatus(data.status);
       } catch (e) {
-        if (active) setFollowError(e instanceof Error ? e.message : 'フォロー状態を取得できませんでした');
+        if (active) setFollowError('フォロー状態を読み込めませんでした。');
       } finally {
         if (active) setFollowLoading(false);
       }
@@ -149,7 +149,7 @@ export default function UserProfile({
         setFollowStatus(data.follow.status);
       }
     } catch (e) {
-      setFollowError(e instanceof Error ? e.message : 'フォロー操作に失敗しました');
+      setFollowError('フォロー操作を完了できませんでした。再度お試しください。');
     } finally {
       setFollowBusy(false);
     }
@@ -202,7 +202,7 @@ export default function UserProfile({
                   followStatus === 'pending' ? '申請を取り消す' :
                   followStatus === 'accepted' ? 'フォローを解除' : 'フォローする'}
               </button>
-              <button type="button" disabled={dmBusy} onClick={()=>{setDmBusy(true);setDmError('');void getOrCreateConversation(profile.user_id,getToken).then(id=>navigate('conversation',{id})).catch(e=>setDmError(String(e))).finally(()=>setDmBusy(false));}} className="ml-2 px-4 py-2 rounded-lg border border-teal-600 text-teal-700 text-sm disabled:opacity-50">メッセージ</button>
+              <button type="button" disabled={dmBusy} onClick={()=>{setDmBusy(true);setDmError('');void getOrCreateConversation(profile.user_id,getToken).then(id=>navigate('conversation',{id})).catch(e=>setDmError('メッセージを開始できませんでした。再度お試しください。')).finally(()=>setDmBusy(false));}} className="ml-2 px-4 py-2 rounded-lg border border-teal-600 text-teal-700 text-sm disabled:opacity-50">メッセージ</button>
               {dmError && <p role="alert" className="mt-2 text-sm text-red-600">{dmError}</p>}
               {followError && <p role="alert" className="mt-2 text-sm text-red-600">{followError}</p>}
             </div>
