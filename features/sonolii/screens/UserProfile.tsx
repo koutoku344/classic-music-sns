@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/react';
 import type { ScreenName } from '../types';
 import { listUserPosts, type PostRow } from '../lib/postApi';
 import PostSummary from '../components/PostSummary';
+import { UserRound } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/messageApi';
 
 type PublicProfile = {
@@ -182,10 +183,16 @@ export default function UserProfile({
       {loading && <p role="status">読み込み中...</p>}
       {error && <p role="alert" className="text-red-600">{error}</p>}
       {!loading && !error && profile && (
-        <div className="bg-white rounded-2xl border border-ink-100 p-6">
-          <h1 className="text-xl font-bold">
-            {profile.display_name || 'プロフィール未設定'}
-          </h1>
+        <div className="bg-white rounded-2xl border border-ink-100 p-6 animate-slide-up">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-20 h-20 shrink-0 bg-ink-100 rounded-full flex items-center justify-center text-ink-400">
+              <UserRound size={36}/>
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-serif text-xl font-bold text-ink-900">{profile.display_name || 'プロフィール未設定'}</h1>
+              <p className="text-sm text-ink-500 mt-1">{[...(profile.instruments??[]),...(profile.region?[profile.region]:[])].join(' · ')}</p>
+            </div>
+          </div>
           {followStatus !== 'self' && (
             <div className="mt-4">
               <button type="button" onClick={() => void changeFollow()}
@@ -200,15 +207,9 @@ export default function UserProfile({
               {followError && <p role="alert" className="mt-2 text-sm text-red-600">{followError}</p>}
             </div>
           )}
-          <p className="mt-3 text-sm">
-            {profile.instruments?.join('・') || '楽器未設定'}
-          </p>
-          {profile.region && <p className="mt-2 text-sm">地域：{profile.region}</p>}
-          <p className="mt-4 whitespace-pre-wrap">{profile.bio || ''}</p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-700 whitespace-pre-wrap">{profile.restricted ? '' : (profile.bio || '')}</p>
           {profile.restricted && <p className="mt-4 text-sm text-ink-500">投稿は公開範囲が制限されています。</p>}
-          <p className="mt-6 text-xs text-ink-400">
-            フォロー・レパートリーの公開表示は後続STEPで対応予定です。
-          </p>
+
         </div>
       )}
       {!loading && !error && profile && !profile.restricted && (
