@@ -438,28 +438,11 @@ export default function MyPage({ navigate }: MyPageProps) {
           {practiceError && <p role="alert" className="text-sm text-red-600">{practiceError}</p>}
           {!practiceError && myPracticeRecords.length === 0 &&
             <p className="text-sm text-ink-500">練習記録はまだありません。</p>}
-          {myPracticeRecords.map(record => (
-            <button
-              key={record.id}
-              onClick={() => navigate('practiceDetail', { id: record.id })}
-              className="w-full p-4 text-left bg-white rounded-xl border border-ink-100 hover:border-teal-300"
-            >
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex gap-1.5 items-center text-ink-800">
-                  <Calendar size={14} />
-                  {record.practice_date}
-                </span>
-                <span className="flex gap-1 items-center text-teal-700">
-                  <Clock size={12} />
-                  {record.duration_minutes}分
-                </span>
-              </div>
-              <p className="text-sm mt-2 text-ink-800">
-                <span className="italic text-ink-500">{record.composer_name}</span> / {record.piece_title}
-              </p>
-              {record.comment && <p className="text-xs text-ink-500 mt-1">{record.comment}</p>}
-            </button>
-          ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {myPracticeRecords.map(record => <ProfileTile key={record.id} kind="practice"
+              title={record.piece_title} subtitle={record.duration_minutes+'分'}
+              onClick={()=>navigate('practiceDetail',{id:record.id})}/>)}
+          </div>
         </div>
       )}
     </div>
