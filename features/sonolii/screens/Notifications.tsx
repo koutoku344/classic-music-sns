@@ -169,7 +169,7 @@ export default function Notifications({ navigate }: {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-start justify-between gap-3 mb-5">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-ink-900">通知</h1>
+          <h1 className="sr-only">通知</h1>
           {isSignedIn && <p className="text-sm text-ink-500 mt-1">未読 {unread}件</p>}
         </div>
         {isSignedIn && (
