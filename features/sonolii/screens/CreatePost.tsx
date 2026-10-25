@@ -159,7 +159,7 @@ export default function CreatePost({ navigate, editId }: Props) {
       }} className="flex items-center gap-2 text-ink-600 mb-4 text-sm">
         <ArrowLeft size={18}/> {panel === 'main' ? '戻る' : '入力画面へ戻る'}
       </button>
-      <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">{heading}</h1>
+      {(panel !== "main" || editId) && <h1 className="font-serif text-2xl font-bold text-ink-900 mb-6">{heading}</h1>}
 
       {createdId ? (
         <div className="bg-white rounded-2xl border border-ink-100 p-6 space-y-3">
@@ -211,11 +211,11 @@ export default function CreatePost({ navigate, editId }: Props) {
                 </div>
               </div>
               <label className="flex items-center justify-between text-sm text-ink-700">
-                コメント受付（将来の交流機能用）
+                コメント受付
                 <input type="checkbox" checked={commentsEnabled}
                   onChange={e => setCommentsEnabled(e.target.checked)}/>
               </label>
-              <p className="text-xs text-ink-500">曲を選択した場合のみ音声が必須です。投稿の公開範囲はプロフィール設定に従います。</p>
+              
               {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
               <button type="button" disabled={busy} onClick={() => void save()}
                 className="w-full py-3.5 bg-teal-600 text-white rounded-xl font-medium disabled:opacity-50">
