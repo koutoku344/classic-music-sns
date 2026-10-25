@@ -211,6 +211,8 @@ export async function handlePosts(
         p.created_at, p.updated_at,
         to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
         pr.display_name,
+        (SELECT COUNT(*)::int FROM public.post_likes pl WHERE pl.post_id=p.id) AS like_count,
+        (SELECT COUNT(*)::int FROM public.post_comments pc2 WHERE pc2.post_id=p.id AND pc2.deleted_at IS NULL) AS comment_count,
         COALESCE(c.name, up.composer) AS composer_name,
         COALESCE(pc.title, up.title) AS piece_title,
         COALESCE((
