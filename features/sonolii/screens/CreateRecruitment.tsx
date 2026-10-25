@@ -38,13 +38,13 @@ export default function CreateRecruitment({navigate}:{navigate:(s:ScreenName,par
   }
   return <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
     <button onClick={()=>navigate('community')} className="flex items-center gap-2 text-sm text-ink-600"><ArrowLeft size={18}/> 戻る</button>
-    <h1 className="font-serif text-2xl font-bold">アンサンブル募集を作成</h1>
+    
     <div className="bg-white rounded-2xl border border-ink-100 p-5 space-y-5">
-      <PiecePicker pieces={catalog} selectedPiece={piece} onSelect={setPiece} label="演奏曲目（任意）" recentPieces={[]} allowFreeInput={false} defaultLibraryMode="catalog" />
-      <fieldset><legend className="text-sm font-medium mb-2">募集楽器（任意・未選択なら指定なし）</legend><div className="flex flex-wrap gap-2">{instruments.map(x=><button type="button" key={x} aria-pressed={selectedInstruments.includes(x)} onClick={()=>toggle(x,selectedInstruments,setSelectedInstruments)} className={`px-3 py-2 border rounded-xl text-sm ${selectedInstruments.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
+      <PiecePicker pieces={catalog} selectedPiece={piece} onSelect={setPiece} label="演奏曲目" recentPieces={[]} allowFreeInput={false} defaultLibraryMode="catalog" />
+      <fieldset><legend className="text-sm font-medium mb-2">募集楽器</legend><div className="flex flex-wrap gap-2">{instruments.map(x=><button type="button" key={x} aria-pressed={selectedInstruments.includes(x)} onClick={()=>toggle(x,selectedInstruments,setSelectedInstruments)} className={`px-3 py-2 border rounded-xl text-sm ${selectedInstruments.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
       <fieldset><legend className="text-sm font-medium mb-2">地域（複数選択可）</legend><div className="flex flex-wrap gap-2">{regions.map(x=><button type="button" key={x} aria-pressed={selectedRegions.includes(x)} onClick={()=>toggle(x,selectedRegions,setSelectedRegions)} className={`px-3 py-2 border rounded-xl text-sm ${selectedRegions.includes(x)?'bg-teal-100 border-teal-500':'border-ink-200'}`}>{x}</button>)}</div></fieldset>
       <div className="grid grid-cols-2 gap-3"><label className="text-sm">レベル<select value={level} onChange={e=>setLevel(e.target.value)} className={selectCls}>{['初級','中級','上級','問わない'].map(x=><option key={x}>{x}</option>)}</select></label><label className="text-sm">目的<select value={purpose} onChange={e=>setPurpose(e.target.value)} className={selectCls}>{['アンサンブル','発表会','趣味で合わせ','その他'].map(x=><option key={x}>{x}</option>)}</select></label></div>
-      <label className="block text-sm">募集内容（必須）<textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={2000} rows={5} className={selectCls} placeholder="演奏条件・練習頻度・日程など" /></label>
+      <label className="block text-sm">募集内容 <span aria-label="必須" className="text-red-600">※</span><textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={2000} rows={5} className={selectCls} placeholder="演奏条件・練習頻度・日程など" /></label>
       {error&&<p role="alert" className="text-sm text-red-600">{error}</p>}
       <button type="button" onClick={()=>void submit()} disabled={busy} className="w-full py-3 bg-teal-600 text-white rounded-xl disabled:opacity-60">{busy?'投稿中...':'募集を投稿する'}</button>
     </div>
