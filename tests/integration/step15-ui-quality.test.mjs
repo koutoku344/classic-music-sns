@@ -46,3 +46,16 @@ test('STEP15 requested copy updates and community header cleanup',()=>{
  assert.match(recruiting,/label="演奏曲目"/);
  assert.match(recruiting,/募集内容 <span aria-label="必須"/);
 });
+
+test('STEP15 practice monthly charts and repertoire counters',()=>{
+ const practice=read('features/sonolii/screens/Practice.tsx');
+ const donut=read('features/sonolii/components/PracticeDonut.tsx');
+ const mypage=read('features/sonolii/screens/MyPage.tsx');
+ assert.match(practice,/monthBounds\(currentMonth.year,currentMonth.month\)/);
+ assert.match(practice,/view === 'date'/);
+ assert.match(practice,/<PracticeDonut items=\{chartItems\}/);
+ assert.match(donut,/conic-gradient/);
+ assert.match(donut,/aria-label/);
+ assert.match(mypage,/練習中 \{myRepertoire.filter/);
+ assert.doesNotMatch(mypage,/取得済み投稿数/);
+});
